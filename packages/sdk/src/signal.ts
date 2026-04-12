@@ -65,12 +65,12 @@ export function defineSignal<TOutput>(opts: DefineSignalOptions<TOutput>) {
   const token: SettlementTokenKey | SettlementToken = opts.token ?? "USDT0";
   const tokenMeta = resolveToken(token);
   const chainId = opts.chainId ?? 196;
-  const chain: Chain = chainId === 195 ? xLayerTestnet : xLayer;
+  const chain: Chain = chainId === 1952 ? xLayerTestnet : xLayer;
   const network =
-    opts.network ?? (chainId === 195 ? X_LAYER_TESTNET_NETWORK : X_LAYER_NETWORK);
+    opts.network ?? (chainId === 1952 ? X_LAYER_TESTNET_NETWORK : X_LAYER_NETWORK);
   const maxTimeoutSeconds = opts.maxTimeoutSeconds ?? 60;
   const publicClient =
-    chainId === 195 ? xLayerTestnetPublicClient(opts.rpcUrl) : xLayerPublicClient(opts.rpcUrl);
+    chainId === 1952 ? xLayerTestnetPublicClient(opts.rpcUrl) : xLayerPublicClient(opts.rpcUrl);
 
   const paymentOption: PaymentOption = {
     scheme: "exact",

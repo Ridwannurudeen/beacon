@@ -32,7 +32,7 @@ const PRIVATE_KEY = (process.env.SIGNAL_PRIVATE_KEY ?? "") as `0x${string}`;
 const PAY_TO = (process.env.PAY_TO ?? "") as Address;
 const PORT = Number(process.env.PORT ?? 4002);
 const PRICE = BigInt(process.env.PRICE ?? "2000");
-const CHAIN_ID = Number(process.env.CHAIN_ID ?? 195);
+const CHAIN_ID = Number(process.env.CHAIN_ID ?? 1952);
 const FACTORY = (process.env.UNISWAP_V3_FACTORY ?? "") as Address;
 const MOCK_FALLBACK = process.env.MOCK_FALLBACK !== "false";
 
@@ -46,7 +46,7 @@ if (!isAddress(PAY_TO)) throw new Error("PAY_TO required");
 if (!isAddress(TOKEN_ADDRESS)) throw new Error("TOKEN_ADDRESS required");
 
 const account = privateKeyToAccount(PRIVATE_KEY);
-const isTestnet = CHAIN_ID === 195;
+const isTestnet = CHAIN_ID === 1952;
 const chain = isTestnet ? xLayerTestnet : xLayer;
 const settlementWallet = isTestnet
   ? xLayerTestnetWalletClient(account)

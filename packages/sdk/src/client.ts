@@ -42,7 +42,7 @@ export async function signX402Payment(
 
   const chainId = opts.chainId ?? 196;
   const network =
-    opts.network ?? (chainId === 195 ? X_LAYER_TESTNET_NETWORK : X_LAYER_NETWORK);
+    opts.network ?? (chainId === 1952 ? X_LAYER_TESTNET_NETWORK : X_LAYER_NETWORK);
   const windowSeconds = opts.windowSeconds ?? 60;
   const now = Math.floor(Date.now() / 1000);
 

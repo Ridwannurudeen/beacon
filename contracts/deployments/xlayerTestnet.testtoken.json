@@ -1,0 +1,12 @@
+{
+  "network": "xlayerTestnet",
+  "chainId": 1952,
+  "token": {
+    "address": "0xe5A5A31145dc44EB3BD701897cd825b2443A6B76",
+    "symbol": "bUSD",
+    "name": "Beacon USD",
+    "version": "1",
+    "decimals": 6
+  },
+  "deployedAt": "2026-04-12T20:33:34.072Z"
+}

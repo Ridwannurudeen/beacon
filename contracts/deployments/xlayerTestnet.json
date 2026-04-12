@@ -1,0 +1,10 @@
+{
+  "network": "xlayerTestnet",
+  "chainId": 1952,
+  "deployer": "0x90329b94b178b45B4a9f25cfCF3979a2aea41542",
+  "contracts": {
+    "SignalRegistry": "0x02D1f2324D9D7323CB27FC504b846e9CB2020433",
+    "PaymentSplitter": "0xaD5FE8f63143Fae56D097685ECF99BEEc612169a"
+  },
+  "deployedAt": "2026-04-12T20:32:33.105Z"
+}

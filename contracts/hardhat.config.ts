@@ -24,7 +24,7 @@ const config: HardhatUserConfig = {
     },
     xlayerTestnet: {
       url: process.env.XLAYER_TESTNET_RPC ?? "https://testrpc.xlayer.tech",
-      chainId: 195,
+      chainId: 1952,
       accounts,
     },
   },
@@ -44,7 +44,7 @@ const config: HardhatUserConfig = {
       },
       {
         network: "xlayerTestnet",
-        chainId: 195,
+        chainId: 1952,
         urls: {
           apiURL: "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER_TESTNET",
           browserURL: "https://www.oklink.com/xlayer-test",

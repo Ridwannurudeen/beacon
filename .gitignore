@@ -7,6 +7,8 @@ cache/
 typechain-types/
 .env
 .env.local
+.keys/
+
 *.log
 .DS_Store
 coverage/

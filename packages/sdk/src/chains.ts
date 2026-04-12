@@ -18,11 +18,11 @@ export const xLayer = defineChain({
 });
 
 /**
- * X Layer testnet (chainId 195). Beacon's default dev/demo chain. Beacon deploys its
+ * X Layer testnet (chainId 1952). Beacon's default dev/demo chain. Beacon deploys its
  * own EIP-3009 settlement token (TestToken) here since USDT0 only exists on mainnet.
  */
 export const xLayerTestnet = defineChain({
-  id: 195,
+  id: 1952,
   name: "X Layer Testnet",
   nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
   rpcUrls: {
@@ -74,7 +74,7 @@ export type SettlementTokenKey = keyof typeof X_LAYER_TOKENS;
  * CAIP-style value directly.
  */
 export const X_LAYER_NETWORK = "evm:196" as const;
-export const X_LAYER_TESTNET_NETWORK = "evm:195" as const;
+export const X_LAYER_TESTNET_NETWORK = "evm:1952" as const;
 
 /**
  * Resolves a SettlementToken from either a known key (mainnet USDT0/USDC) or a runtime

@@ -25,7 +25,7 @@ const PAYER_PRIVATE_KEY = (process.env.PAYER_PRIVATE_KEY ?? PRIVATE_KEY) as `0x$
 const PAY_TO = (process.env.PAY_TO ?? "") as Address;
 const PORT = Number(process.env.PORT ?? 4010);
 const PRICE = BigInt(process.env.PRICE ?? "6000");
-const CHAIN_ID = Number(process.env.CHAIN_ID ?? 195);
+const CHAIN_ID = Number(process.env.CHAIN_ID ?? 1952);
 
 const WALLET_RISK_URL = process.env.WALLET_RISK_URL ?? "http://localhost:4001/signal";
 const LIQUIDITY_DEPTH_URL = process.env.LIQUIDITY_DEPTH_URL ?? "http://localhost:4002/signal";
@@ -55,7 +55,7 @@ for (const addr of [WALLET_RISK_PAYTO, LIQUIDITY_DEPTH_PAYTO, YIELD_SCORE_PAYTO]
 
 const account = privateKeyToAccount(PRIVATE_KEY);
 const payerAccount = privateKeyToAccount(PAYER_PRIVATE_KEY);
-const isTestnet = CHAIN_ID === 195;
+const isTestnet = CHAIN_ID === 1952;
 const chain = isTestnet ? xLayerTestnet : xLayer;
 const settlementWallet = isTestnet ? xLayerTestnetWalletClient(account) : xLayerWalletClient(account);
 const payerWallet = isTestnet
