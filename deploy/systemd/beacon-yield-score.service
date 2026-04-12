@@ -1,0 +1,20 @@
+[Unit]
+Description=Beacon signal: yield-score
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/beacon/signals/yield-score
+EnvironmentFile=/opt/beacon/signals/yield-score/.env
+ExecStartPre=-/bin/fuser -k 4003/tcp
+ExecStart=/usr/bin/node /opt/beacon/signals/yield-score/dist/index.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=beacon-yield-score
+
+[Install]
+WantedBy=multi-user.target

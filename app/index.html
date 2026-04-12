@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Beacon — the signal layer of Onchain OS</title>
+    <meta name="description" content="A marketplace for composable, live-priced intelligence signals on X Layer. Every call paid per-tick via x402. Composite signals cascade payments to upstream authors by protocol." />
+    <meta property="og:title" content="Beacon — the signal layer of Onchain OS" />
+    <meta property="og:description" content="Composable, live-priced intelligence for agents on X Layer. Pay per tick. Compose. Cascade." />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/" class="brand">BEACON</a>
+        <div class="nav-right">
+          <a href="#signals">Signals</a>
+          <a href="#how">How it works</a>
+          <a href="/autopilot.html">Autopilot →</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>The signal layer of Onchain OS.</h1>
+        <p class="lead">
+          A marketplace for composable, live-priced intelligence signals on X Layer. Every
+          call paid per-tick via <span class="mono">x402</span>. Composite signals cascade
+          payments to upstream authors by protocol — not by honor.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn primary" href="/autopilot.html">Try Autopilot</a>
+          <a class="btn" href="#signals">Browse signals</a>
+          <a class="btn ghost" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </section>
+
+      <section id="metrics" class="metrics">
+        <div class="metric">
+          <span class="metric-label">Signals published</span>
+          <span class="metric-value" data-metric="signals">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Composites</span>
+          <span class="metric-value" data-metric="composites">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">x402 calls settled</span>
+          <span class="metric-value" data-metric="calls">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">USDT0 cascaded</span>
+          <span class="metric-value" data-metric="volume">—</span>
+        </div>
+      </section>
+
+      <section id="signals">
+        <h2>Live signals</h2>
+        <div id="signals-grid" class="grid">
+          <div class="signal-card placeholder">Loading…</div>
+        </div>
+      </section>
+
+      <section id="how">
+        <h2>How the cascade works</h2>
+        <ol class="steps">
+          <li>
+            <span class="step-num">1</span>
+            <div>
+              <h3>Publish a Signal</h3>
+              <p><span class="mono">defineSignal({ slug, price, handler })</span> — your endpoint becomes a paid x402 resource on X Layer. Registered on-chain in <span class="mono">SignalRegistry</span>.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <div>
+              <h3>Compose signals</h3>
+              <p><span class="mono">defineComposite({ upstream, shareBps })</span> — wrap multiple signals; every call to your composite automatically pays upstreams in declared basis-point shares.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <div>
+              <h3>Agents buy intelligence</h3>
+              <p>Via the Beacon MCP server or the Signal SDK <span class="mono">fetchWithPayment()</span>. Payments are EIP-3009 transferWithAuthorization on USDT0, settled on X Layer.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-num">4</span>
+            <div>
+              <h3>Cascade by protocol</h3>
+              <p>Composite authors can't skip paying upstreams — the cascade IS the call. Receipts surface in response headers. Aggregate revenue indexed on-chain.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section id="cta">
+        <h2>Ship a signal</h2>
+        <p>Install the SDK and you're live in five minutes.</p>
+        <pre><code>npm install @beacon/sdk
+
+import { defineSignal } from "@beacon/sdk";
+
+defineSignal({
+  slug: "my-signal",
+  price: 1000n, // 0.001 USDT0 per call
+  payTo: "0xYourWallet",
+  handler: async (ctx) => ({ hello: "world" }),
+});</code></pre>
+      </section>
+    </main>
+
+    <footer>
+      <div>BEACON · on X Layer · built for OKX Build X Hackathon</div>
+      <div>
+        <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://docs.beacon.fyi" target="_blank" rel="noopener">Docs</a>
+        <a href="https://web3.okx.com/xlayer" target="_blank" rel="noopener">X Layer</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/landing.ts"></script>
+  </body>
+</html>

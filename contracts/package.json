@@ -1,0 +1,31 @@
+{
+  "name": "@beacon/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Beacon on-chain registry and payment splitter for X Layer",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:xlayer": "hardhat run scripts/deploy.ts --network xlayer",
+    "deploy:xlayer-testnet": "hardhat run scripts/deploy.ts --network xlayerTestnet",
+    "deploy-token:xlayer-testnet": "hardhat run scripts/deployTestToken.ts --network xlayerTestnet",
+    "publish:xlayer": "hardhat run scripts/publishSignals.ts --network xlayer",
+    "publish:xlayer-testnet": "hardhat run scripts/publishSignals.ts --network xlayerTestnet",
+    "traffic:xlayer": "hardhat run scripts/generateTraffic.ts --network xlayer",
+    "traffic:xlayer-testnet": "hardhat run scripts/generateTraffic.ts --network xlayerTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.0",
+    "hardhat": "^2.22.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  }
+}

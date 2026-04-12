@@ -1,0 +1,20 @@
+[Unit]
+Description=Beacon MCP server (SSE)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/beacon/packages/mcp
+EnvironmentFile=/opt/beacon/packages/mcp/.env
+ExecStartPre=-/bin/fuser -k 4100/tcp
+ExecStart=/usr/bin/node /opt/beacon/packages/mcp/dist/index.js --sse
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=beacon-mcp
+
+[Install]
+WantedBy=multi-user.target

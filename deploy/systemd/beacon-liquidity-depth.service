@@ -1,0 +1,20 @@
+[Unit]
+Description=Beacon signal: liquidity-depth
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/beacon/signals/liquidity-depth
+EnvironmentFile=/opt/beacon/signals/liquidity-depth/.env
+ExecStartPre=-/bin/fuser -k 4002/tcp
+ExecStart=/usr/bin/node /opt/beacon/signals/liquidity-depth/dist/index.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=beacon-liquidity-depth
+
+[Install]
+WantedBy=multi-user.target

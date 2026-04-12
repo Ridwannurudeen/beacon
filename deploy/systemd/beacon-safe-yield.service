@@ -1,0 +1,20 @@
+[Unit]
+Description=Beacon composite signal: safe-yield
+After=network-online.target beacon-wallet-risk.service beacon-liquidity-depth.service beacon-yield-score.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/beacon/signals/safe-yield
+EnvironmentFile=/opt/beacon/signals/safe-yield/.env
+ExecStartPre=-/bin/fuser -k 4010/tcp
+ExecStart=/usr/bin/node /opt/beacon/signals/safe-yield/dist/index.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=beacon-safe-yield
+
+[Install]
+WantedBy=multi-user.target
