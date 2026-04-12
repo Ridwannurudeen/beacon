@@ -94,6 +94,24 @@ const composite = defineComposite({
   payerWallet,
   // All upstreams use the same settlement token on testnet — resolver returns it.
   upstreamTokenResolver: () => token,
+  // Map the buyer's `?asset=0x…` into the param each upstream expects.
+  upstreamQuery: (ctx, up) => {
+    const asset = ctx.req.query("asset") ?? "";
+    const slug = up.url.includes("wallet-risk")
+      ? "wallet-risk"
+      : up.url.includes("liquidity-depth")
+        ? "liquidity-depth"
+        : "yield-score";
+    if (slug === "wallet-risk") return { address: asset };
+    if (slug === "liquidity-depth") {
+      return {
+        tokenA: TOKEN_ADDRESS,
+        tokenB: asset,
+        fee: "3000",
+      };
+    }
+    return { asset };
+  },
   upstream: [
     { url: WALLET_RISK_URL, price: WALLET_RISK_PRICE, shareBps: 3000, payTo: WALLET_RISK_PAYTO },
     { url: LIQUIDITY_DEPTH_URL, price: LIQUIDITY_DEPTH_PRICE, shareBps: 3000, payTo: LIQUIDITY_DEPTH_PAYTO },

@@ -1,0 +1,10 @@
+{
+  "network": "xlayerTestnet",
+  "registry": "0x02D1f2324D9D7323CB27FC504b846e9CB2020433",
+  "signals": {
+    "wallet-risk": "0xe45a8e931fd8475e87de8e0d54899a5a4a7a23ca8634fdb6cf1039c3636b9946",
+    "liquidity-depth": "0x8b419c3545716ec7091f6adf0ac311be224cb3a0cbe6a5b0fd99ef2f1a282b32",
+    "yield-score": "0xb9b567ef083e920cd01a50d4a1a58f6675e3d67651292ab3ceb3d76e415ac98a",
+    "safe-yield": "0x23928080b1dbab47c53dcc81397a1c48ed50000b9b430079501bbf219f7f2bb8"
+  }
+}
