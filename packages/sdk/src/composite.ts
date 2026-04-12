@@ -103,8 +103,14 @@ function forwardAllQuery(ctx: Context): Record<string, string> {
 function slugFromUrl(url: string): string {
   try {
     const u = new URL(url);
+    // Prefer first pathname segment if meaningful (not 'signal' or similar generic).
     const parts = u.pathname.split("/").filter(Boolean);
-    return parts[0] ?? u.host;
+    const generic = new Set(["signal", "api", "v1", "v2"]);
+    if (parts[0] && !generic.has(parts[0])) return parts[0];
+    // Fall back to the first host label (e.g. "wallet-risk" from
+    // "wallet-risk.gudman.xyz").
+    const host = u.host.split(".")[0];
+    return host ?? u.host;
   } catch {
     return url;
   }
