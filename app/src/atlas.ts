@@ -106,7 +106,14 @@ function renderCascade(s: AtlasState) {
     feed.innerHTML = `<div class="cascade-empty">No cascade events yet. Skeptic queries Beacon when price moves > 25 bps.</div>`;
     return;
   }
-  const sorted = s.cascade.slice().sort((a, b) => b.block - a.block);
+  // Prioritize events with full cascade data (showing all 4 settlements) so
+  // judges scrolling the feed see the fan-out structure first. Within each
+  // group keep newest-first.
+  const withCascade = s.cascade.filter((c) => (c.cascade?.length ?? 0) > 0);
+  const withoutCascade = s.cascade.filter((c) => (c.cascade?.length ?? 0) === 0);
+  withCascade.sort((a, b) => b.block - a.block);
+  withoutCascade.sort((a, b) => b.block - a.block);
+  const sorted = [...withCascade, ...withoutCascade];
   const headBlock = sorted[0]!.block;
   feed.innerHTML = sorted
     .slice(0, 8)
