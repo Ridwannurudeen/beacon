@@ -44,7 +44,7 @@ interface RunnerState {
   history: bigint[];
 }
 
-const SLIPPAGE_BPS = 100n; // 1% slippage tolerance
+const SLIPPAGE_BPS = 500n; // 5% — agents + mover all move price between sim and swap
 const HISTORY_MAX = 20;
 
 /**
