@@ -67,11 +67,22 @@
       <section id="cascade">
         <h2>Live cascade feed</h2>
         <p class="section-sub">
-          Every signal Skeptic buys cascades x402 payments to upstream signal authors. Click a
-          row to see the on-chain settlement on OKLink.
+          Every signal Skeptic buys triggers four x402 settlements on X Layer: one buyer→composite
+          plus three composite→upstream. Click any row to see the tx on OKLink.
         </p>
         <div id="cascade-feed" class="cascade-feed">
           <div class="cascade-empty">No cascade events yet. Skeptic queries Beacon when price moves &gt; 25 bps.</div>
+        </div>
+      </section>
+
+      <section id="trades">
+        <h2>Recent trades</h2>
+        <p class="section-sub">
+          Last on-chain swaps on DemoAMM. Each trade emits an <span class="mono">AgentTraded</span>
+          event on AgentRegistry — the leaderboard is built from these.
+        </p>
+        <div id="trades-feed" class="cascade-feed">
+          <div class="cascade-empty">Loading trades…</div>
         </div>
       </section>
 

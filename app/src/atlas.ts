@@ -25,6 +25,16 @@ interface CascadeEvent {
   cost: string;
   settlementTx: string;
   txHash: string;
+  cascade: Array<{ txHash: string; authorizer: string; nonce: string; block: number }>;
+}
+
+interface RecentTrade {
+  block: number;
+  agent: string;
+  side: "BUY" | "SELL";
+  amountIn: string;
+  amountOut: string;
+  txHash: string;
 }
 
 interface AtlasState {
@@ -45,6 +55,7 @@ interface AtlasState {
   agents: AgentEntry[];
   totals: { trades: number; signals: number; cascadeSpend: string };
   cascade?: CascadeEvent[];
+  recentTrades?: RecentTrade[];
   updatedAt: string;
 }
 
@@ -86,6 +97,8 @@ function timeAgo(blocksAgo: number): string {
   return `${Math.floor(seconds / 3600)}h ago`;
 }
 
+const UPSTREAM_LABELS = ["wallet-risk", "liquidity-depth", "yield-score"];
+
 function renderCascade(s: AtlasState) {
   const feed = document.getElementById("cascade-feed");
   if (!feed) return;
@@ -93,22 +106,66 @@ function renderCascade(s: AtlasState) {
     feed.innerHTML = `<div class="cascade-empty">No cascade events yet. Skeptic queries Beacon when price moves > 25 bps.</div>`;
     return;
   }
-  // Sort newest first
   const sorted = s.cascade.slice().sort((a, b) => b.block - a.block);
   const headBlock = sorted[0]!.block;
   feed.innerHTML = sorted
-    .slice(0, 12)
+    .slice(0, 8)
     .map((c) => {
       const cost = (Number(c.cost) / 1_000_000).toFixed(4);
       const blocksAgo = headBlock - c.block;
+      const cascadeRows = (c.cascade ?? [])
+        .slice(0, 3)
+        .map((up, i) => {
+          const upstream = UPSTREAM_LABELS[i] ?? "upstream";
+          return `
+            <a class="cascade-sub" href="${s.chain.explorer}/tx/${up.txHash}" target="_blank" rel="noopener">
+              <span class="cascade-sub-arrow">└→</span>
+              <span class="cascade-sub-label">safe-yield → ${upstream}</span>
+              <span class="cascade-sub-tx">${up.txHash.slice(0, 10)}…${up.txHash.slice(-6)}</span>
+            </a>`;
+        })
+        .join("");
       return `
-        <a class="cascade-row" href="${s.chain.explorer}/tx/${c.settlementTx}" target="_blank" rel="noopener">
+        <div class="cascade-block">
+          <a class="cascade-row" href="${s.chain.explorer}/tx/${c.settlementTx}" target="_blank" rel="noopener">
+            <span class="cascade-time">${timeAgo(blocksAgo)}</span>
+            <span class="cascade-agent">${c.agent}</span>
+            <span class="cascade-arrow">→</span>
+            <span class="cascade-slug">${c.signalSlug}</span>
+            <span class="cascade-cost">${cost} bUSD</span>
+            <span class="cascade-tx">${c.settlementTx.slice(0, 10)}…${c.settlementTx.slice(-6)}</span>
+          </a>
+          ${cascadeRows ? `<div class="cascade-children">${cascadeRows}</div>` : ""}
+        </div>`;
+    })
+    .join("");
+}
+
+function renderRecentTrades(s: AtlasState) {
+  const feed = document.getElementById("trades-feed");
+  if (!feed) return;
+  if (!s.recentTrades || s.recentTrades.length === 0) {
+    feed.innerHTML = `<div class="cascade-empty">No trades yet — agents are warming up.</div>`;
+    return;
+  }
+  const sorted = s.recentTrades.slice().sort((a, b) => b.block - a.block);
+  const headBlock = sorted[0]!.block;
+  feed.innerHTML = sorted
+    .slice(0, 12)
+    .map((t) => {
+      const blocksAgo = headBlock - t.block;
+      const amtIn = (Number(t.amountIn) / 1_000_000).toFixed(2);
+      const amtOut = (Number(t.amountOut) / 1_000_000).toFixed(2);
+      const tokenIn = t.side === "BUY" ? "bUSD" : "MOCKX";
+      const tokenOut = t.side === "BUY" ? "MOCKX" : "bUSD";
+      const sideClass = t.side === "BUY" ? "pos" : "neg";
+      return `
+        <a class="cascade-row" href="${s.chain.explorer}/tx/${t.txHash}" target="_blank" rel="noopener">
           <span class="cascade-time">${timeAgo(blocksAgo)}</span>
-          <span class="cascade-agent">${c.agent}</span>
-          <span class="cascade-arrow">→</span>
-          <span class="cascade-slug">${c.signalSlug}</span>
-          <span class="cascade-cost">${cost} bUSD</span>
-          <span class="cascade-tx">${c.settlementTx.slice(0, 10)}…</span>
+          <span class="cascade-agent">${t.agent}</span>
+          <span class="cascade-side ${sideClass}">${t.side}</span>
+          <span class="cascade-slug">${amtIn} ${tokenIn} → ${amtOut} ${tokenOut}</span>
+          <span class="cascade-tx">${t.txHash.slice(0, 10)}…${t.txHash.slice(-6)}</span>
         </a>`;
     })
     .join("");
@@ -182,6 +239,7 @@ async function main() {
   renderMetrics(s);
   renderAgents(s);
   renderCascade(s);
+  renderRecentTrades(s);
   renderContracts(s);
   setTimeout(main, 30_000);
 }
