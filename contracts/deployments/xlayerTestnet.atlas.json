@@ -1,0 +1,17 @@
+{
+  "network": "xlayerTestnet",
+  "chainId": 1952,
+  "deployer": "0x90329b94b178b45B4a9f25cfCF3979a2aea41542",
+  "contracts": {
+    "bUSD": "0xe5A5A31145dc44EB3BD701897cd825b2443A6B76",
+    "MockX": "0x320830a9094e955EdD366802127f4F056CF4B08B",
+    "AgentRegistry": "0x2F41E56C09BB117dD8F1E3B648ADA403e460c454",
+    "DemoAMM": "0x54F90b6D39284806639Bf376C28FA07d3547Cd76",
+    "AtlasVault": "0x113b660d9F53015cc3478f595835554A5DB7dff2"
+  },
+  "seed": {
+    "bUSD": "100000000000",
+    "mockX": "100000000000"
+  },
+  "deployedAt": "2026-04-13T12:06:45.602Z"
+}

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atlas — Deposit</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body class="autopilot">
+    <header>
+      <nav>
+        <a href="/" class="brand">ATLAS</a>
+        <div class="nav-right">
+          <span class="pill">Deposit · testnet</span>
+        </div>
+      </nav>
+    </header>
+
+    <main class="autopilot-main">
+      <section class="autopilot-hero">
+        <h1>Deposit bUSD into Atlas</h1>
+        <p class="lead">
+          Mint ATLS shares pro-rata to current NAV. Your share value tracks the equity of
+          the agent pool — including their wins, losses, and signal-cascade spend.
+        </p>
+      </section>
+
+      <section class="autopilot-grid">
+        <div class="card">
+          <h3>1. Connect</h3>
+          <button id="connect" class="btn primary">Connect wallet</button>
+          <div id="account" class="dim">Not connected</div>
+        </div>
+
+        <div class="card">
+          <h3>2. Deposit</h3>
+          <label>
+            Amount (bUSD)
+            <input id="amount" type="number" value="100" min="1" step="1" />
+          </label>
+          <button id="approve" class="btn" disabled>Approve bUSD</button>
+          <button id="deposit" class="btn primary" disabled>Deposit →</button>
+        </div>
+
+        <div class="card">
+          <h3>3. Status</h3>
+          <div id="status" class="strategy">
+            <span class="dim">Connect a wallet to begin.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="footnote">
+        <h4>Need bUSD?</h4>
+        <p style="color: var(--muted); font-size: 14px;">
+          Beacon USD (bUSD) is an open-mint EIP-3009 token on X Layer testnet. Mint any amount
+          to yourself by calling <span class="mono">mint(yourAddress, amount)</span> on
+          <a class="mono" id="busd-link" target="_blank" rel="noopener">bUSD</a>.
+          Each unit has 6 decimals — pass <span class="mono">100000000</span> for 100 bUSD.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div>ATLAS · Deposit</div>
+      <div><a href="/">← Home</a></div>
+    </footer>
+
+    <script type="module" src="/src/deposit.ts"></script>
+  </body>
+</html>

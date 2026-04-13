@@ -1,0 +1,19 @@
+[Unit]
+Description=Atlas — agent-runner (Fear, Greed, Skeptic)
+After=network-online.target beacon-safe-yield.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/beacon/atlas/agent-runner
+EnvironmentFile=/opt/beacon/atlas/agent-runner/.env
+ExecStart=/usr/bin/node /opt/beacon/atlas/agent-runner/dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atlas-agent-runner
+
+[Install]
+WantedBy=multi-user.target

@@ -3,124 +3,133 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Beacon — the signal layer of Onchain OS</title>
-    <meta name="description" content="A marketplace for composable, live-priced intelligence signals on X Layer. Every call paid per-tick via x402. Composite signals cascade payments to upstream authors by protocol." />
-    <meta property="og:title" content="Beacon — the signal layer of Onchain OS" />
-    <meta property="og:description" content="Composable, live-priced intelligence for agents on X Layer. Pay per tick. Compose. Cascade." />
+    <title>Atlas — Decentralized AI Hedge Fund on X Layer</title>
+    <meta name="description" content="Deposit bUSD. Three competing AI agents trade your capital on X Layer. Profitable agents earn more. Every signal they consume is paid for on-chain via x402. Pure programmatic capital allocation." />
+    <meta property="og:title" content="Atlas — Decentralized AI Hedge Fund on X Layer" />
+    <meta property="og:description" content="Programmable capital allocation. Agents compete. The best earn more." />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
     <header>
       <nav>
-        <a href="/" class="brand">BEACON</a>
+        <a href="/" class="brand">ATLAS</a>
         <div class="nav-right">
-          <a href="#signals">Signals</a>
-          <a href="#how">How it works</a>
-          <a href="/autopilot.html">Autopilot →</a>
+          <a href="#leaderboard">Leaderboard</a>
+          <a href="#how">How</a>
+          <a href="/deposit.html">Deposit →</a>
         </div>
       </nav>
     </header>
 
     <main>
       <section class="hero">
-        <h1>The signal layer of Onchain OS.</h1>
+        <h1>The decentralized AI hedge fund.</h1>
         <p class="lead">
-          A marketplace for composable, live-priced intelligence signals on X Layer. Every
-          call paid per-tick via <span class="mono">x402</span>. Composite signals cascade
-          payments to upstream authors by protocol — not by honor.
+          Deposit bUSD. Three competing AI agents trade your capital on X Layer. Profitable
+          agents earn more. Every signal they consume is paid for on-chain via
+          <span class="mono">x402</span>. Intelligence costs are real performance drag —
+          the cascade isn't theater anymore, it's the game.
         </p>
         <div class="hero-ctas">
-          <a class="btn primary" href="/autopilot.html">Try Autopilot</a>
-          <a class="btn" href="#signals">Browse signals</a>
+          <a class="btn primary" href="/deposit.html">Deposit bUSD</a>
+          <a class="btn" href="#leaderboard">Watch the agents</a>
           <a class="btn ghost" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
         </div>
       </section>
 
       <section id="metrics" class="metrics">
         <div class="metric">
-          <span class="metric-label">Signals published</span>
-          <span class="metric-value" data-metric="signals">—</span>
+          <span class="metric-label">Vault TVL (bUSD)</span>
+          <span class="metric-value" data-metric="tvl">—</span>
         </div>
         <div class="metric">
-          <span class="metric-label">Composites</span>
-          <span class="metric-value" data-metric="composites">—</span>
+          <span class="metric-label">NAV / share</span>
+          <span class="metric-value" data-metric="nav">—</span>
         </div>
         <div class="metric">
-          <span class="metric-label">x402 calls settled</span>
-          <span class="metric-value" data-metric="calls">—</span>
+          <span class="metric-label">Total trades</span>
+          <span class="metric-value" data-metric="trades">—</span>
         </div>
         <div class="metric">
-          <span class="metric-label">USDT0 cascaded</span>
-          <span class="metric-value" data-metric="volume">—</span>
+          <span class="metric-label">Signal cascade spend</span>
+          <span class="metric-value" data-metric="cascade">—</span>
         </div>
       </section>
 
-      <section id="signals">
-        <h2>Live signals</h2>
-        <div id="signals-grid" class="grid">
-          <div class="signal-card placeholder">Loading…</div>
+      <section id="leaderboard">
+        <h2>Live agent leaderboard</h2>
+        <p class="section-sub">Each agent runs a different strategy. PnL = trades − signal costs. Updates every tick.</p>
+        <div id="agents-grid" class="agents-grid">
+          <div class="agent-card placeholder">Loading agents…</div>
         </div>
       </section>
 
       <section id="how">
-        <h2>How the cascade works</h2>
+        <h2>How Atlas works</h2>
         <ol class="steps">
           <li>
             <span class="step-num">1</span>
             <div>
-              <h3>Publish a Signal</h3>
-              <p><span class="mono">defineSignal({ slug, price, handler })</span> — your endpoint becomes a paid x402 resource on X Layer. Registered on-chain in <span class="mono">SignalRegistry</span>.</p>
+              <h3>Deposit bUSD</h3>
+              <p>You deposit Beacon USD into <span class="mono">AtlasVault</span> on X Layer testnet. You receive ATLS shares pro-rata to NAV. Your shares track the live equity of the entire agent pool.</p>
             </div>
           </li>
           <li>
             <span class="step-num">2</span>
             <div>
-              <h3>Compose signals</h3>
-              <p><span class="mono">defineComposite({ upstream, shareBps })</span> — wrap multiple signals; every call to your composite automatically pays upstreams in declared basis-point shares.</p>
+              <h3>Three agents compete</h3>
+              <p><b>Fear</b> chases momentum. <b>Greed</b> mean-reverts. <b>Skeptic</b> consults the Beacon signal layer before every trade. They share an AMM, run on a 30-second tick, and trade against each other's price impact.</p>
             </div>
           </li>
           <li>
             <span class="step-num">3</span>
             <div>
-              <h3>Agents buy intelligence</h3>
-              <p>Via the Beacon MCP server or the Signal SDK <span class="mono">fetchWithPayment()</span>. Payments are EIP-3009 transferWithAuthorization on USDT0, settled on X Layer.</p>
+              <h3>Intelligence costs real money</h3>
+              <p>Skeptic pays Beacon signals via <span class="mono">x402</span> before each trade. The cost comes out of its book. If the signals don't generate alpha, Skeptic loses to Fear and Greed. Cascade payments aren't theater — they're a tradeoff.</p>
             </div>
           </li>
           <li>
             <span class="step-num">4</span>
             <div>
-              <h3>Cascade by protocol</h3>
-              <p>Composite authors can't skip paying upstreams — the cascade IS the call. Receipts surface in response headers. Aggregate revenue indexed on-chain.</p>
+              <h3>Performance compounds, on-chain</h3>
+              <p>Every trade, every signal call, every PnL delta is recorded on <span class="mono">AgentRegistry</span>. The leaderboard is live, public, and will outlast the hackathon. Reputation accrues to the strategies that actually work.</p>
             </div>
           </li>
         </ol>
       </section>
 
-      <section id="cta">
-        <h2>Ship a signal</h2>
-        <p>Install the SDK and you're live in five minutes.</p>
-        <pre><code>npm install @beacon/sdk
-
-import { defineSignal } from "@beacon/sdk";
-
-defineSignal({
-  slug: "my-signal",
-  price: 1000n, // 0.001 USDT0 per call
-  payTo: "0xYourWallet",
-  handler: async (ctx) => ({ hello: "world" }),
-});</code></pre>
+      <section id="contracts">
+        <h2>On-chain</h2>
+        <div class="contracts-grid">
+          <div class="contract-card">
+            <div class="contract-label">AtlasVault</div>
+            <a class="contract-addr mono" data-contract="AtlasVault" target="_blank" rel="noopener">—</a>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">AgentRegistry</div>
+            <a class="contract-addr mono" data-contract="AgentRegistry" target="_blank" rel="noopener">—</a>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">DemoAMM</div>
+            <a class="contract-addr mono" data-contract="DemoAMM" target="_blank" rel="noopener">—</a>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">bUSD</div>
+            <a class="contract-addr mono" data-contract="bUSD" target="_blank" rel="noopener">—</a>
+          </div>
+        </div>
       </section>
     </main>
 
     <footer>
-      <div>BEACON · on X Layer · built for OKX Build X Hackathon</div>
+      <div>ATLAS · X Layer testnet · powered by Beacon signal layer</div>
       <div>
         <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://docs.beacon.fyi" target="_blank" rel="noopener">Docs</a>
+        <a href="https://www.oklink.com/xlayer-test" target="_blank" rel="noopener">Explorer</a>
         <a href="https://web3.okx.com/xlayer" target="_blank" rel="noopener">X Layer</a>
       </div>
     </footer>
 
-    <script type="module" src="/src/landing.ts"></script>
+    <script type="module" src="/src/atlas.ts"></script>
   </body>
 </html>

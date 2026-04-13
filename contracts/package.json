@@ -9,6 +9,8 @@
     "deploy:xlayer": "hardhat run scripts/deploy.ts --network xlayer",
     "deploy:xlayer-testnet": "hardhat run scripts/deploy.ts --network xlayerTestnet",
     "deploy-token:xlayer-testnet": "hardhat run scripts/deployTestToken.ts --network xlayerTestnet",
+    "deploy-atlas:xlayer-testnet": "hardhat run scripts/deployAtlas.ts --network xlayerTestnet",
+    "fund-atlas:xlayer-testnet": "hardhat run scripts/fundAtlasAgents.ts --network xlayerTestnet",
     "publish:xlayer": "hardhat run scripts/publishSignals.ts --network xlayer",
     "publish:xlayer-testnet": "hardhat run scripts/publishSignals.ts --network xlayerTestnet",
     "traffic:xlayer": "hardhat run scripts/generateTraffic.ts --network xlayer",
