@@ -6,11 +6,13 @@ import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const keys = JSON.parse(readFileSync(".keys/atlas-keys.json", "utf-8"));
+const opKeys = JSON.parse(readFileSync(".keys/operator-keys.json", "utf-8"));
 const VPS = process.env.BEACON_VPS ?? "root@75.119.153.252";
 
 const env = `FEAR_PRIVATE_KEY=${keys.fear.privateKey}
 GREED_PRIVATE_KEY=${keys.greed.privateKey}
 SKEPTIC_PRIVATE_KEY=${keys.skeptic.privateKey}
+MOVER_PRIVATE_KEY=${opKeys.deployer.privateKey}
 TICK_MS=30000
 XLAYER_TESTNET_RPC=https://testrpc.xlayer.tech
 DEPLOY_DIR=/opt/beacon/contracts/deployments

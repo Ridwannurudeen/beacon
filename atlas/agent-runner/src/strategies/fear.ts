@@ -15,13 +15,13 @@ export const fear: Strategy = {
     const past = market.history[market.history.length - 3]!;
     const movePct = past === 0n ? 0n : ((now - past) * 10_000n) / past;
 
-    // 0.8% move = 80 bps trigger
-    if (movePct > 80n && book.bUSD > 1_000_000n) {
+    // 0.3% move = 30 bps trigger
+    if (movePct > 30n && book.bUSD > 1_000_000n) {
       // Buy 20% of bUSD into MOCK-X
       const size = book.bUSD / 5n;
       return { type: "buy", amountBUSD: size, reason: `momentum +${movePct} bps` };
     }
-    if (movePct < -80n && book.mockX > 1_000_000n) {
+    if (movePct < -30n && book.mockX > 1_000_000n) {
       const size = book.mockX / 5n;
       return { type: "sell", amountX: size, reason: `momentum ${movePct} bps` };
     }

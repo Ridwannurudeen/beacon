@@ -22,7 +22,7 @@ export const skeptic: Strategy = {
     const past = market.history[market.history.length - 3]!;
     const movePct = past === 0n ? 0n : ((now - past) * 10_000n) / past;
 
-    if (Math.abs(Number(movePct)) < 50n) {
+    if (movePct > -25n && movePct < 25n) {
       return { type: "hold", reason: `no edge (${movePct} bps), saving signal cost` };
     }
 

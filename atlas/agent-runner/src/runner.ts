@@ -187,10 +187,13 @@ export class AgentRunner {
         ? (JSON.parse(Buffer.from(rh, "base64").toString()).transaction as Hex)
         : ("0x0000000000000000000000000000000000000000000000000000000000000000" as Hex);
 
-      // Record signal consumption on-chain (best effort; don't block trade)
-      this.recordSignal(slug, expectedCost, settlementTx).catch((e) => {
+      // Record signal consumption on-chain. Await it — running concurrently with
+      // the trade flow caused nonce-race conditions on the same EOA.
+      try {
+        await this.recordSignal(slug, expectedCost, settlementTx);
+      } catch (e) {
         console.warn(`[${this.agentName}] recordSignal failed: ${(e as Error).message}`);
-      });
+      }
 
       return { data, cost: expectedCost, settlementTx };
     } catch (e) {

@@ -138,8 +138,8 @@ const mover = new MarketMover({
   mockX: atlas.contracts.MockX,
   amm: atlas.contracts.DemoAMM,
   rpcUrl: RPC_URL,
-  minSize: 50n * 10n ** 6n,    // 50 bUSD min
-  maxSize: 500n * 10n ** 6n,   // 500 bUSD max
+  minSize: 1500n * 10n ** 6n,  // 1.5K bUSD min — moves 100K pool ~1.5%
+  maxSize: 4000n * 10n ** 6n,  // 4K bUSD max — moves pool ~4%
 });
 
 console.log(`Atlas agent-runner started`);

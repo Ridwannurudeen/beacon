@@ -19,11 +19,11 @@ export const greed: Strategy = {
     if (avg === 0n) return { type: "hold", reason: "no avg" };
     const deviation = ((now - avg) * 10_000n) / avg;
 
-    if (deviation < -100n && book.bUSD > 1_000_000n) {
+    if (deviation < -50n && book.bUSD > 1_000_000n) {
       const size = book.bUSD / 5n;
       return { type: "buy", amountBUSD: size, reason: `mean-revert ${deviation} bps below avg` };
     }
-    if (deviation > 100n && book.mockX > 1_000_000n) {
+    if (deviation > 50n && book.mockX > 1_000_000n) {
       const size = book.mockX / 5n;
       return { type: "sell", amountX: size, reason: `mean-revert ${deviation} bps above avg` };
     }
