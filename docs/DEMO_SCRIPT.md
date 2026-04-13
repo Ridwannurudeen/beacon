@@ -1,104 +1,98 @@
-# Beacon — Demo Video Script (3:00)
+# Atlas — Demo Video Script (3:00)
 
-**Target length: 3:00. The cascade moment MUST land at 2:15–2:30.**
+**The cascade moment is at 1:30. The leaderboard moment is at 2:30. Hit both.**
 
-Shoot everything in a clean browser (Chrome, no bookmark bar). Terminal in dark mode. OBS recording at 1080p60 minimum.
+Record at 1080p60 in OBS. Clean browser, no extensions visible. Voiceover overdubbed.
 
 ---
 
 ## [0:00 – 0:20] Hook
 
-**Screen**: Beacon landing page hero, full-bleed.
+**Screen**: Atlas landing page hero, full-bleed.
 
 **Voiceover**:
-> "AI agents need live truth. Today they scrape, guess, or pay flat subscriptions to APIs that don't pay the source. Beacon is the signal layer of Onchain OS — a market where every fact an agent consumes is paid for on the wire, and every composite signal cascades its payment to the authors it's built on. By protocol. On X Layer."
+> "AI agents need intelligence. Today they get it for free. Atlas is the first product where every datapoint an agent buys costs it real money — and every payment cascades to the upstream sources that made it possible. By protocol. On X Layer. Welcome to the decentralized AI hedge fund."
 
-**Text overlay**: `BEACON — the signal layer of Onchain OS`
+**Text overlay**: `ATLAS — decentralized AI hedge fund on X Layer`
 
 ---
 
-## [0:20 – 1:00] Browse signals
+## [0:20 – 1:00] The thesis
 
-**Screen**: Scroll the Beacon landing page. Metrics grid. Signals list (wallet-risk, liquidity-depth, yield-score, safe-yield).
+**Screen**: Scroll the landing page slowly. Show metrics grid (TVL, NAV, trades, cascade spend). Pause on leaderboard.
 
 **Voiceover**:
-> "Four signals live today. Three bases — wallet risk, Uniswap v3 liquidity depth on X Layer, and cross-venue yield score. And one composite: safe-yield, priced at 0.006 USDT0 per call, which internally subscribes to all three. Click any card and you see its paywall metadata — price, payTo, network, the full x402 contract."
+> "You deposit bUSD. Three AI agents take your capital. Fear chases momentum. Greed mean-reverts. Skeptic — the only one paying for intelligence — consults the Beacon signal layer before every trade. Their PnL competes in real time on-chain. Bad strategies lose. Smart ones earn more capital next epoch."
 
-**Action**: Click `liquidity-depth` → opens `/meta` → shows JSON.
-
-**Text overlay**: `Every signal is an x402 resource on X Layer`
+**Text overlay**: `3 strategies · 1 vault · 1 leaderboard`
 
 ---
 
-## [1:00 – 1:45] Compose
+## [1:00 – 1:30] The signals (zoom into Skeptic)
 
-**Screen**: Open `signals/safe-yield/src/index.ts` in VS Code. Highlight the `defineComposite({ upstream: [...], shareBps })` block.
+**Screen**: Click the Skeptic agent card → opens its OKLink address. Show recent transactions: a `transferWithAuthorization` to safe-yield, then a swap on DemoAMM.
 
 **Voiceover**:
-> "Here's how the composite is declared. Three upstreams, thirty percent each, ten percent margin to the composite author. That's it. The SDK wires the payment cascade. The composite can't serve a call without paying upstreams — because serving the call IS the fan-out."
-
-**Text overlay**: `defineComposite({ upstream, shareBps }) — cascade by protocol`
+> "Watch Skeptic. Before every trade, it pays for `safe-yield` — a composite signal that aggregates wallet risk, liquidity depth, and yield score. Each call costs Skeptic 0.006 bUSD. Cheap, but real. The signal cost shows up directly in its PnL. If the signals don't help Skeptic outperform Fear or Greed, they're overpriced."
 
 ---
 
-## [1:45 – 2:30] The Autopilot moment
+## [1:30 – 2:15] **THE CASCADE MOMENT**
 
-**Screen**: Beacon Autopilot page.
+**Screen**: Scroll back to landing. Hover over the **Live cascade feed** section. Click one of the rows.
 
 **Action**:
-1. Type a USDT0 treasury address into `asset`.
-2. Set amount to `1000`.
-3. Click `Query safe-yield →`.
+1. Pause on the cascade feed for 3 full seconds
+2. Click the most recent row → opens OKLink showing the safe-yield settlement tx
+3. Wait for OKLink to load
+4. Show: that transaction is from Skeptic (`0x94f9…bB8e`) to safe-yield, transferring 6,000 base units of bUSD
+5. Switch tab to safe-yield's wallet on OKLink
+6. Show: in the same block, safe-yield made 3 outgoing `transferWithAuthorization` calls — to wallet-risk, liquidity-depth, yield-score
+7. Pause for 2 full seconds
 
-**Voiceover (over the click)**:
-> "One click. The Autopilot pays the composite its advertised price. Watch the cascade."
+**Voiceover (over the action, slow and clear)**:
+> "Here's what happens when Skeptic asks safe-yield a question. Skeptic signs an EIP-3009 authorization. Safe-yield settles it on-chain. Then safe-yield does the same thing — three more times, paying each upstream signal author. **One agent decision. Four x402 settlements. Cascading by protocol.** Not by trust. Not by API agreement. By the way the cascade is wired."
 
-**Expected behavior**:
-- Cascade card fills with FOUR rows:
-  - `you → safe-yield` (with tx hash linking to oklink.com)
-  - `safe-yield → wallet-risk` (tx)
-  - `safe-yield → liquidity-depth` (tx)
-  - `safe-yield → yield-score` (tx)
-- Strategy card shows Safety Score, APY, Best Venue.
-
-**Voiceover (while rows fill)**:
-> "One payment from the user. Three automatic payments to upstream signal authors. Four settlements on X Layer. Zero protocol extensions — pure x402, pure EIP-3009, pure cascade."
-
-**Critical**: pause on the cascade list for 2 full seconds so the four tx hashes are readable. **This is the moment that wins.**
+**Text overlay**: `1 buyer call → 4 settlements on X Layer`
 
 ---
 
-## [2:30 – 3:00] Scale
+## [2:15 – 2:50] **THE LEADERBOARD MOMENT**
 
-**Screen**: OKLink block explorer filtered to the SignalRegistry contract.
+**Screen**: Scroll to the agent leaderboard. Show all 3 ranked by PnL.
 
 **Voiceover**:
-> "This is Beacon's on-chain registry. Every registered signal. Every cascade. Publicly indexable. MCP-connectable from any agent in seconds."
+> "Here's the result, live. After hours of trading and dozens of cascades, this is who's winning. The strategies that buy intelligence are racing the ones that don't. The leaderboard is on-chain, public, and updates every minute. It will be here long after the hackathon ends."
 
-**Action**: Switch to terminal, run `claude --mcp beacon` or show the Claude Desktop MCP config with Beacon listed. Type a natural-language prompt: _"Use Beacon's safe-yield signal to check USDT0 treasury on X Layer."_
+**Action**: Highlight the #1 agent. Read its trade count and PnL %. If Skeptic is winning, narrate that intelligence pays. If Skeptic is losing, narrate that the market is hard and signals aren't free lunch.
 
-**Text overlay**: `Any MCP agent. Any chain. One SDK.`
+---
 
-**Voiceover (closing)**:
-> "Publish a signal in five minutes. Earn every time an agent, or another signal, consumes it. Beacon. The signal layer of Onchain OS."
+## [2:50 – 3:00] Close
 
-**Final frame (2 sec)**: Logo + `beacon.fyi` + `#XLayerHackathon @XLayerOfficial`.
+**Screen**: GitHub repo page.
+
+**Voiceover**:
+> "Open source. Audited contracts. Live on X Layer testnet right now. Atlas is what the AI hedge fund looks like when intelligence has a price. Built for OKX Build X."
+
+**Final frame**: `beacon.gudman.xyz · github.com/Ridwannurudeen/beacon · #XLayerHackathon @XLayerOfficial`
 
 ---
 
 ## Recording checklist
 
-- [ ] Browser cleaned (no extensions visible, no bookmarks bar, incognito OK)
-- [ ] All four signal servers running (wallet-risk :4001, liquidity-depth :4002, yield-score :4003, safe-yield :4010)
-- [ ] Registry contract deployed + signals published on X Layer mainnet
-- [ ] Traffic generator has seeded at least 1000 `CallRecorded` events — landing page metrics must not show "0"
-- [ ] USDT0 funded in payer wallet, OKB for gas in signal wallets
-- [ ] oklink.com open in a tab for tx hash verification during takes
-- [ ] Rehearsed the Autopilot click 5 times so the cascade renders in < 4s
-- [ ] Voiceover recorded separately and overlaid — don't trust live narration
+- [ ] All 5 signal services + atlas-agent-runner + atlas-registry-refresh.timer running on VPS
+- [ ] Atlas dashboard at https://beacon.gudman.xyz showing real numbers (TVL > 30K, trades > 100)
+- [ ] Cascade feed populated with at least 12 events
+- [ ] Leaderboard sorted, with at least one positive and one negative PnL agent
+- [ ] OKLink open in a tab for tx inspection during the cascade moment
+- [ ] Browser cleaned (incognito, no extensions visible)
+- [ ] OBS recording 1080p60
+- [ ] Voiceover recorded separately
+- [ ] Practice the cascade moment 5 times — that's the punchline
 
 ## Upload
 
-- YouTube (unlisted first to share with teammates, public at submission time)
-- Include `@XLayerOfficial` + `#XLayerHackathon` in the YouTube description
-- Cross-post to Twitter with thread (see `TWITTER_THREAD.md`)
+- YouTube unlisted first → share with me for review
+- Public at submission time
+- YouTube description: `Atlas — decentralized AI hedge fund on X Layer. Built for OKX Build X Hackathon. https://github.com/Ridwannurudeen/beacon @XLayerOfficial #XLayerHackathon #onchainos`
