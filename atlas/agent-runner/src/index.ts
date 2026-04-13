@@ -13,6 +13,7 @@ import * as dotenv from "dotenv";
 import type { Address } from "viem";
 import type { SettlementToken } from "@beacon/sdk";
 import { AgentRunner } from "./runner.js";
+import { MarketMover } from "./market-mover.js";
 import { fear } from "./strategies/fear.js";
 import { greed } from "./strategies/greed.js";
 import { skeptic } from "./strategies/skeptic.js";
@@ -62,6 +63,10 @@ const KEYS = {
 for (const [name, k] of Object.entries(KEYS)) {
   if (!k) throw new Error(`${name.toUpperCase()}_PRIVATE_KEY required in env`);
 }
+
+// MarketMover uses the deployer key — it has bUSD + can mint MockX freely.
+const MOVER_KEY = process.env.MOVER_PRIVATE_KEY;
+if (!MOVER_KEY) throw new Error("MOVER_PRIVATE_KEY required in env (e.g. deployer key)");
 
 const SIGNAL_URLS = {
   "wallet-risk": process.env.WALLET_RISK_URL ?? "https://wallet-risk.gudman.xyz/signal",
@@ -127,6 +132,16 @@ const runners = [
   ),
 ];
 
+const mover = new MarketMover({
+  privateKey: MOVER_KEY as `0x${string}`,
+  bUSD: atlas.contracts.bUSD,
+  mockX: atlas.contracts.MockX,
+  amm: atlas.contracts.DemoAMM,
+  rpcUrl: RPC_URL,
+  minSize: 50n * 10n ** 6n,    // 50 bUSD min
+  maxSize: 500n * 10n ** 6n,   // 500 bUSD max
+});
+
 console.log(`Atlas agent-runner started`);
 console.log(`  AMM:      ${atlas.contracts.DemoAMM}`);
 console.log(`  Registry: ${atlas.contracts.AgentRegistry}`);
@@ -134,10 +149,23 @@ console.log(`  Vault:    ${atlas.contracts.AtlasVault}`);
 console.log(`  bUSD:     ${atlas.contracts.bUSD}`);
 console.log(`  MockX:    ${atlas.contracts.MockX}`);
 console.log(`  tick:     ${TICK_MS}ms`);
+console.log(`  mover:    ${mover.address}`);
 for (const r of runners) console.log(`  agent:    ${r.address}`);
 
+let tickCount = 0;
 async function tick() {
   const t0 = Date.now();
+
+  // MarketMover runs every 2 ticks to seed price action between agent decisions
+  if (tickCount % 2 === 0) {
+    try {
+      const m = await mover.tick();
+      console.log(`[mover] ${m.side} ${Number(m.size) / 1e6} → ${m.tx}`);
+    } catch (e) {
+      console.error(`mover error: ${(e as Error).message}`);
+    }
+  }
+
   // Run agents sequentially so the AMM state mutations are observable in order.
   for (const r of runners) {
     try {
@@ -146,8 +174,9 @@ async function tick() {
       console.error(`tick error: ${(e as Error).message}`);
     }
   }
+  tickCount++;
   const dt = Date.now() - t0;
-  console.log(`--- tick complete in ${dt}ms ---`);
+  console.log(`--- tick #${tickCount} complete in ${dt}ms ---`);
 }
 
 async function main() {
