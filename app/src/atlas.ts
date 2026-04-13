@@ -18,6 +18,15 @@ interface AgentEntry {
   cascadeSpend: string;
 }
 
+interface CascadeEvent {
+  block: number;
+  agent: string;
+  signalSlug: string;
+  cost: string;
+  settlementTx: string;
+  txHash: string;
+}
+
 interface AtlasState {
   chain: { id: number; name: string; explorer: string };
   contracts: {
@@ -28,13 +37,14 @@ interface AtlasState {
     bUSD: string;
   };
   vault: {
-    tvl: string; // base units
+    tvl: string;
     totalSupply: string;
-    pricePerShare: string; // 6 dec
+    pricePerShare: string;
   };
   amm: { spotXInBUSD: string };
   agents: AgentEntry[];
   totals: { trades: number; signals: number; cascadeSpend: string };
+  cascade?: CascadeEvent[];
   updatedAt: string;
 }
 
@@ -64,8 +74,44 @@ function fallback(): AtlasState {
     amm: { spotXInBUSD: "1000000000000000000" },
     agents: [],
     totals: { trades: 0, signals: 0, cascadeSpend: "0" },
+    cascade: [],
     updatedAt: new Date().toISOString(),
   };
+}
+
+function timeAgo(blocksAgo: number): string {
+  const seconds = blocksAgo * 2; // ~2s per block on X Layer
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
+}
+
+function renderCascade(s: AtlasState) {
+  const feed = document.getElementById("cascade-feed");
+  if (!feed) return;
+  if (!s.cascade || s.cascade.length === 0) {
+    feed.innerHTML = `<div class="cascade-empty">No cascade events yet. Skeptic queries Beacon when price moves > 25 bps.</div>`;
+    return;
+  }
+  // Sort newest first
+  const sorted = s.cascade.slice().sort((a, b) => b.block - a.block);
+  const headBlock = sorted[0]!.block;
+  feed.innerHTML = sorted
+    .slice(0, 12)
+    .map((c) => {
+      const cost = (Number(c.cost) / 1_000_000).toFixed(4);
+      const blocksAgo = headBlock - c.block;
+      return `
+        <a class="cascade-row" href="${s.chain.explorer}/tx/${c.settlementTx}" target="_blank" rel="noopener">
+          <span class="cascade-time">${timeAgo(blocksAgo)}</span>
+          <span class="cascade-agent">${c.agent}</span>
+          <span class="cascade-arrow">→</span>
+          <span class="cascade-slug">${c.signalSlug}</span>
+          <span class="cascade-cost">${cost} bUSD</span>
+          <span class="cascade-tx">${c.settlementTx.slice(0, 10)}…</span>
+        </a>`;
+    })
+    .join("");
 }
 
 function fmtUSD(baseUnits: string): string {
@@ -135,8 +181,9 @@ async function main() {
   const s = await load();
   renderMetrics(s);
   renderAgents(s);
+  renderCascade(s);
   renderContracts(s);
-  setTimeout(main, 30_000); // refresh every 30s
+  setTimeout(main, 30_000);
 }
 
 main();

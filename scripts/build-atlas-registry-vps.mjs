@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /**
- * Builds atlas.json from on-chain reads and pushes to the VPS.
- * Includes:
- *   - Vault TVL / NAV
- *   - Per-agent leaderboard data (PnL %, trades, signals, equity)
- *   - Live cascade feed: recent SignalConsumed events + matched
- *     CallRecorded events showing the upstream fan-out
+ * VPS-side variant: writes atlas.json directly to the local filesystem instead
+ * of SSHing into ourselves. Same on-chain reads as build-atlas-registry.mjs.
  */
-import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createPublicClient, http, parseAbi, parseAbiItem } from "viem";
 
-const atlas = JSON.parse(readFileSync("contracts/deployments/xlayerTestnet.atlas.json", "utf-8"));
-const beacon = JSON.parse(readFileSync("contracts/deployments/xlayerTestnet.json", "utf-8"));
-const VPS = process.env.BEACON_VPS ?? "root@75.119.153.252";
+const ROOT = resolve(process.cwd());
+const atlas = JSON.parse(readFileSync(resolve(ROOT, "contracts/deployments/xlayerTestnet.atlas.json"), "utf-8"));
+const beacon = JSON.parse(readFileSync(resolve(ROOT, "contracts/deployments/xlayerTestnet.json"), "utf-8"));
+const OUT = resolve(ROOT, "app/dist/atlas.json");
 
 const rpc = createPublicClient({ transport: http("https://testrpc.xlayer.tech") });
 
@@ -31,7 +28,6 @@ const REGISTRY_ABI = parseAbi([
 const AMM_ABI = parseAbi([
   "function spotPriceBInA() view returns (uint256)",
 ]);
-
 const SIGNAL_CONSUMED = parseAbiItem(
   "event SignalConsumed(bytes32 indexed agentId, string signalSlug, uint256 cost, bytes32 settlementTx)"
 );
@@ -50,8 +46,7 @@ const [tvl, totalSupply, pricePerShare, totalAgents, spot, head] = await Promise
 
 const agentEntries = [];
 const idToName = new Map();
-let totalTrades = 0;
-let totalSignals = 0;
+let totalTrades = 0, totalSignals = 0;
 let totalCascade = 0n;
 
 for (let i = 0n; i < totalAgents; i++) {
@@ -83,13 +78,9 @@ for (let i = 0n; i < totalAgents; i++) {
   });
 }
 
-// --- live cascade feed ---
-// X Layer testnet RPC caps getLogs at 100 blocks. Page through the last ~30 min
-// of history (900 blocks at 2s/block) in 100-block chunks.
 const TOTAL_LOOKBACK = 900n;
 const CHUNK = 100n;
 const startBlock = head > TOTAL_LOOKBACK ? head - TOTAL_LOOKBACK : 0n;
-
 async function pagedLogs(address, event) {
   const all = [];
   for (let from = startBlock; from <= head; from += CHUNK) {
@@ -97,53 +88,34 @@ async function pagedLogs(address, event) {
     try {
       const logs = await rpc.getLogs({ address, event, fromBlock: from, toBlock: to });
       all.push(...logs);
-    } catch (e) {
-      console.warn(`getLogs ${from}-${to} failed: ${e.message}`);
-    }
+    } catch (e) {}
   }
   return all;
 }
-
 const [signalConsumedLogs, callRecordedLogs] = await Promise.all([
   pagedLogs(atlas.contracts.AgentRegistry, SIGNAL_CONSUMED),
   pagedLogs(beacon.contracts.SignalRegistry, CALL_RECORDED),
 ]);
 
-// Match SignalConsumed (agent paying composite) → CallRecorded (composite paying upstreams)
-// by settlement tx hash. The composite's CallRecorded settlements happen in the same
-// safe-yield server flow but are SEPARATE on-chain txs for each upstream.
-//
-// Cleanest grouping: SignalConsumed[settlementTx == X] anchors a cascade event;
-// CallRecorded events emitted by the composite within ~15s after that anchor are
-// the upstream cascade.
 const cascadeEvents = signalConsumedLogs
-  .slice(-30) // most recent 30
-  .reverse() // newest first
-  .map((log) => {
-    const args = log.args;
-    const agentName = idToName.get(args.agentId) ?? args.agentId.slice(0, 10);
-    return {
-      block: Number(log.blockNumber),
-      agent: agentName,
-      signalSlug: args.signalSlug,
-      cost: args.cost.toString(),
-      settlementTx: args.settlementTx,
-      txHash: log.transactionHash,
-    };
-  });
-
-// All upstream CallRecorded events visible to anyone reading SignalRegistry
-const upstreamPayments = callRecordedLogs
-  .slice(-60)
+  .slice(-30)
   .reverse()
   .map((log) => ({
     block: Number(log.blockNumber),
-    signalId: log.args.signalId,
-    payer: log.args.payer,
-    amount: log.args.amount.toString(),
-    settlement: log.args.settlement,
+    agent: idToName.get(log.args.agentId) ?? log.args.agentId.slice(0, 10),
+    signalSlug: log.args.signalSlug,
+    cost: log.args.cost.toString(),
+    settlementTx: log.args.settlementTx,
     txHash: log.transactionHash,
   }));
+const upstreamPayments = callRecordedLogs.slice(-60).reverse().map((log) => ({
+  block: Number(log.blockNumber),
+  signalId: log.args.signalId,
+  payer: log.args.payer,
+  amount: log.args.amount.toString(),
+  settlement: log.args.settlement,
+  txHash: log.transactionHash,
+}));
 
 const out = {
   chain: { id: 1952, name: "X Layer Testnet", explorer: "https://www.oklink.com/xlayer-test" },
@@ -152,16 +124,11 @@ const out = {
     SignalRegistry: beacon.contracts.SignalRegistry,
     PaymentSplitter: beacon.contracts.PaymentSplitter,
   },
-  vault: {
-    tvl: tvl.toString(),
-    totalSupply: totalSupply.toString(),
-    pricePerShare: pricePerShare.toString(),
-  },
+  vault: { tvl: tvl.toString(), totalSupply: totalSupply.toString(), pricePerShare: pricePerShare.toString() },
   amm: { spotXInBUSD: spot.toString() },
   agents: agentEntries,
   totals: {
-    trades: totalTrades,
-    signals: totalSignals,
+    trades: totalTrades, signals: totalSignals,
     cascadeSpend: totalCascade.toString(),
     cascadeEvents: cascadeEvents.length,
     upstreamPayments: upstreamPayments.length,
@@ -171,8 +138,5 @@ const out = {
   updatedAt: new Date().toISOString(),
 };
 
-const json = JSON.stringify(out, null, 2);
-execSync(`ssh ${VPS} "cat > /opt/beacon/app/dist/atlas.json"`, { input: json });
-console.log(`✓ atlas.json pushed (${agentEntries.length} agents, TVL ${Number(tvl) / 1e6} bUSD)`);
-console.log(`  trades: ${totalTrades}, signals: ${totalSignals}, cascade: ${Number(totalCascade) / 1e6} bUSD`);
-console.log(`  cascade feed: ${cascadeEvents.length} events, ${upstreamPayments.length} upstream payments`);
+writeFileSync(OUT, JSON.stringify(out, null, 2));
+console.log(`✓ atlas.json (${agentEntries.length} agents, TVL ${Number(tvl) / 1e6}, ${cascadeEvents.length} cascade events)`);

@@ -1,0 +1,11 @@
+[Unit]
+Description=Atlas — refresh atlas.json from on-chain reads
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/beacon
+ExecStart=/usr/bin/node /opt/beacon/scripts/build-atlas-registry-vps.mjs
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atlas-registry-refresh
