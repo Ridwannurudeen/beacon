@@ -217,8 +217,11 @@ export class AgentRunnerV2 {
       const data = await res.json();
 
       const header = res.headers.get("X-Cascade-Receipt");
+      const hdrNames = Array.from(res.headers.keys()).join(",");
+      console.log(`[${this.strategy.name}] response headers: ${hdrNames}`);
       let settlementTx: Hex = ("0x" + "00".repeat(32)) as Hex;
       if (header) {
+        console.log(`[${this.strategy.name}] got receipt header (${header.length}b)`);
         try {
           const signed = decodeCascadeReceiptHeader(header);
           settlementTx = signed.receipt.buyerSettlementTx;
@@ -226,6 +229,8 @@ export class AgentRunnerV2 {
         } catch (e) {
           console.warn(`[${this.strategy.name}] receipt decode: ${(e as Error).message}`);
         }
+      } else {
+        console.warn(`[${this.strategy.name}] no X-Cascade-Receipt header in response`);
       }
       return {
         data,
