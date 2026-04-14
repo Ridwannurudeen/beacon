@@ -10,6 +10,8 @@ export default defineConfig({
       input: {
         main: "index.html",
         deposit: "deposit.html",
+        withdraw: "withdraw.html",
+        notfound: "404.html",
       },
     },
   },

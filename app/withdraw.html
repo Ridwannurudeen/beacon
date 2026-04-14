@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Beacon · Atlas — Withdraw</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a href="/" class="brand">
+          <span class="brand-mark"></span>
+          <span>BEACON</span>
+          <span class="brand-sub">/ ATLAS V2</span>
+        </a>
+        <div class="nav-right">
+          <a class="nav-link" href="/">← Dashboard</a>
+          <a class="nav-link" href="/deposit.html">Deposit</a>
+          <span id="wallet-slot"></span>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" style="padding: 60px 0 30px; grid-template-columns: 1fr;">
+        <div>
+          <div class="hero-badge"><span class="pill">ERC-4626</span><span>idle redemption · queue for larger</span></div>
+          <h1 style="font-size: clamp(36px, 4.5vw, 56px);">Withdraw bUSD from <em>Atlas V2</em>.</h1>
+          <p class="hero-lead">
+            Standard ERC-4626 redemption pulls from the vault's idle bUSD balance.
+            For larger amounts use the <span class="mono">WithdrawQueue</span> — request → admin
+            recall → claim.
+          </p>
+        </div>
+      </section>
+
+      <section style="margin-top: 40px;">
+        <div class="deposit-grid">
+          <div class="deposit-card">
+            <h3>1 — Connect</h3>
+            <button id="connect" class="btn primary">Connect wallet</button>
+            <div id="account" class="dim">Not connected</div>
+            <div id="shares-info" class="dim" style="margin-top:8px"></div>
+          </div>
+          <div class="deposit-card">
+            <h3>2 — Redeem (instant)</h3>
+            <label class="field">
+              Shares to burn (ATLS)
+              <input id="shares" type="number" value="10" min="0" step="1" />
+            </label>
+            <button id="redeem" class="btn primary" disabled>Redeem ATLS →</button>
+            <div class="dim">Pulls from idle bUSD only.</div>
+          </div>
+          <div class="deposit-card">
+            <h3>3 — Status</h3>
+            <div id="status" class="status-box"><span class="dim">Connect a wallet to begin.</span></div>
+          </div>
+        </div>
+
+        <div class="footnote">
+          <h4>Larger withdrawals</h4>
+          <p>
+            If your redemption exceeds the vault's idle balance, the call reverts with
+            <span class="mono">WithdrawExceedsIdle</span>. Use the <span class="mono">WithdrawQueue</span>
+            contract: <span class="mono">requestWithdraw(shares)</span> escrows your shares; admin
+            recalls capital from a strategy and calls <span class="mono">fulfill()</span>; you call
+            <span class="mono">claim()</span>. The queue address is in the dashboard contracts list.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>BEACON · ATLAS V2 · Withdraw</div>
+        <div class="footer-links"><a href="/">← Home</a></div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/withdraw.ts"></script>
+  </body>
+</html>
