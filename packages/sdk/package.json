@@ -1,7 +1,30 @@
 {
   "name": "@beacon/sdk",
-  "version": "0.1.0",
-  "description": "Beacon Signal SDK — define composable, x402-priced signals",
+  "version": "1.0.0",
+  "description": "Beacon Signal SDK — define composable, x402-priced signals with cryptographic cascade receipts. First-class X Layer support.",
+  "keywords": [
+    "x402",
+    "xlayer",
+    "x-layer",
+    "onchain-os",
+    "okx",
+    "agent",
+    "signal",
+    "cascade",
+    "eip-712",
+    "eip-3009"
+  ],
+  "author": "Beacon Protocol",
+  "license": "MIT",
+  "homepage": "https://beacon.gudman.xyz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ridwannurudeen/beacon.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/Ridwannurudeen/beacon/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,11 +35,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch"
+    "dev": "tsc -p tsconfig.json --watch",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@x402/core": "^2.9.0",
@@ -32,5 +58,8 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

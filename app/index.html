@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Atlas — Decentralized AI Hedge Fund on X Layer</title>
-    <meta name="description" content="Deposit bUSD. Three competing AI agents trade your capital on X Layer. Profitable agents earn more. Every signal they consume is paid for on-chain via x402. Pure programmatic capital allocation." />
-    <meta property="og:title" content="Atlas — Decentralized AI Hedge Fund on X Layer" />
-    <meta property="og:description" content="Programmable capital allocation. Agents compete. The best earn more." />
+    <title>Atlas — AI Strategy Vault on X Layer (V2)</title>
+    <meta name="description" content="Multi-strategy vault with real custody on X Layer. ERC-4626 shares track live NAV from vault-controlled sub-wallets — not external EOAs. Every signal consumed is paid via signed x402 cascade receipts." />
+    <meta property="og:title" content="Atlas — AI Strategy Vault on X Layer (V2)" />
+    <meta property="og:description" content="Real custody. Real P&L from balance snapshots. Signed cascade receipts. Auditable agent arena." />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -23,17 +23,57 @@
 
     <main>
       <section class="hero">
-        <h1>The decentralized AI hedge fund.</h1>
+        <h1>AI strategy vault on X Layer.</h1>
         <p class="lead">
-          Deposit bUSD. Three competing AI agents trade your capital on X Layer. Profitable
-          agents earn more. Every signal they consume is paid for on-chain via
-          <span class="mono">x402</span>. Intelligence costs are real performance drag —
-          the cascade isn't theater anymore, it's the game.
+          Multi-strategy vault with <b>real custody</b>: sub-wallets owned by on-chain strategy
+          contracts, vault-controlled capital flow, P&amp;L derived from balance snapshots.
+          Every composite signal response is a cryptographic <span class="mono">CascadeReceipt</span>
+          the composite has signed — no heuristic matching, no self-reported numbers.
         </p>
         <div class="hero-ctas">
-          <a class="btn primary" href="/deposit.html">Deposit bUSD</a>
+          <a class="btn primary" href="/deposit.html">Deposit bUSD (V2)</a>
           <a class="btn" href="#leaderboard">Watch the agents</a>
+          <a class="btn" href="#v2">V2 Architecture</a>
           <a class="btn ghost" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </section>
+
+      <section id="v2" style="margin-top: 40px;">
+        <h2>V2 architecture — production-tier rebuild</h2>
+        <p class="section-sub">
+          Earlier Atlas had review-flagged flaws (NAV gameable via external wallets, self-reported P&amp;L,
+          heuristic cascade matching). V2 rebuilds the trust spine from scratch. <b>42/42 tests pass,
+          including an adversarial suite covering NAV inflation, custody breaches, and fraud claims.</b>
+        </p>
+        <div class="contracts-grid">
+          <div class="contract-card">
+            <div class="contract-label">AtlasVaultV2</div>
+            <a class="contract-addr mono" href="https://www.oklink.com/xlayer-test/address/0x2b77AAD51566aeD6ec6feba250450200997BbA22" target="_blank" rel="noopener">0x2b77AAD5…97BbA22</a>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
+              ERC-4626-shaped. NAV = idle + Σ registered strategy equity. External EOAs cannot inflate.
+            </div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">CascadeLedger</div>
+            <a class="contract-addr mono" href="https://www.oklink.com/xlayer-test/address/0x5abb55245023E7886234102ff338bB70FacCF761" target="_blank" rel="noopener">0x5abb5524…FacCF761</a>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
+              Accepts EIP-712 signed CascadeReceipts. Emits deterministic events — no heuristics.
+            </div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">SlashingRegistry</div>
+            <a class="contract-addr mono" href="https://www.oklink.com/xlayer-test/address/0x39e371a7680e7754914384Dd778FF0Eb8d5B6053" target="_blank" rel="noopener">0x39e371a7…8d5B6053</a>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
+              Strategies post stake; fraud claims trigger challenge window; false reporting slashes.
+            </div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">Strategies (Fear / Greed / Skeptic)</div>
+            <span class="contract-addr mono" style="color: var(--muted);">Custody via SubWallet per strategy</span>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
+              Executor submits signed TradeIntents. No EOA touches user capital. P&amp;L from balance deltas.
+            </div>
+          </div>
         </div>
       </section>
 
