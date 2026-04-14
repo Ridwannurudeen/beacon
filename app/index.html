@@ -3,188 +3,278 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Atlas V2 · Beacon — AI Strategy Vault with Signed Cascade Receipts on X Layer</title>
-    <meta name="description" content="Vault-custody AI strategy arena on X Layer. Skeptic pays the Beacon signal layer per trade; every cascade is an EIP-712 signed receipt anchored to CascadeLedger. Powered by @beacon/sdk." />
-    <meta property="og:title" content="Atlas V2 · Beacon — Signed Cascade Receipts on X Layer" />
-    <meta property="og:description" content="Vault-custody AI strategy arena. Paid intelligence. Signed receipts. Anchored on-chain." />
+    <title>Beacon · Atlas — AI Strategy Vault on X Layer with Signed Cascade Receipts</title>
+    <meta name="description" content="A vault-custody AI strategy arena on X Layer. Skeptic pays the Beacon signal layer per trade; every cascade is an EIP-712 signed receipt anchored on-chain via CascadeLedger. Powered by @beacon/sdk." />
+    <meta property="og:title" content="Beacon · Atlas — Signed Cascade Receipts on X Layer" />
+    <meta property="og:description" content="Vault-custody AI strategies. Paid intelligence. Signed receipts. Fully on-chain." />
+    <meta property="og:image" content="/og-image.svg" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0a0a14" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <header>
-      <nav>
-        <a href="/" class="brand">ATLAS</a>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a href="/" class="brand">
+          <span class="brand-mark"></span>
+          <span>BEACON</span>
+          <span class="brand-sub">/ ATLAS V2</span>
+        </a>
         <div class="nav-right">
-          <a href="#leaderboard">Leaderboard</a>
-          <a href="#how">How</a>
-          <a href="/deposit.html">Deposit →</a>
+          <a class="nav-link" href="#vault">Vault</a>
+          <a class="nav-link" href="#strategies">Strategies</a>
+          <a class="nav-link" href="#cascade">Cascade</a>
+          <a class="nav-link" href="#how">How</a>
+          <a class="nav-link btn sm" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+          <a class="nav-link btn primary sm" href="/deposit.html">Deposit →</a>
         </div>
       </nav>
     </header>
 
     <main>
-      <section class="hero">
-        <h1>AI strategy vault + signed cascade receipts.</h1>
-        <p class="lead">
-          Two primitives that fit together. <b>@beacon/sdk</b> turns any HTTP endpoint into an
-          x402-priced signal and every composite response carries an EIP-712 signed
-          <span class="mono">CascadeReceipt</span>. <b>Atlas V2</b> is the vault-custody arena
-          where three strategies compete — Skeptic pays the signal layer before each trade,
-          every cascade is anchored on-chain via <span class="mono">CascadeLedger</span>. No
-          self-reported P&amp;L. No heuristic matching. No external-wallet NAV inflation.
+      <!-- ============================================================== -->
+      <!-- HERO -->
+      <!-- ============================================================== -->
+      <section class="hero fade-in">
+        <div class="hero-badge">
+          <span class="pill">v2.1</span>
+          <span>vault custody · signed cascades · on-chain anchored</span>
+        </div>
+        <h1>The strategy vault where <em>intelligence has a price</em>.</h1>
+        <p class="hero-lead">
+          Three on-chain AI strategies compete for capital under vault custody on X Layer.
+          Skeptic pays the Beacon signal layer before each trade — every cascade is an
+          EIP-712 signed receipt, anchored on <span class="mono">CascadeLedger</span>.
+          No self-reported P&amp;L. No heuristic matching. No external-wallet NAV inflation.
         </p>
         <div class="hero-ctas">
           <a class="btn primary" href="/deposit.html">Deposit bUSD</a>
-          <a class="btn" href="#leaderboard">Watch the strategies</a>
-          <a class="btn" href="#v2">Architecture</a>
-          <a class="btn ghost" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn" href="#strategies">Watch the strategies</a>
+          <a class="btn ghost" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub →</a>
+          <span class="status-pill" id="status-pill">
+            <span class="status-dot"></span>
+            <span id="last-updated">syncing…</span>
+          </span>
         </div>
-      </section>
 
-      <section id="v2" style="margin-top: 40px;">
-        <h2>V2 architecture — production-tier rebuild</h2>
-        <p class="section-sub">
-          Earlier Atlas had review-flagged flaws (NAV gameable via external wallets, self-reported P&amp;L,
-          heuristic cascade matching). V2 rebuilds the trust spine from scratch. <b>42/42 tests pass,
-          including an adversarial suite covering NAV inflation, custody breaches, and fraud claims.</b>
-        </p>
-        <div class="contracts-grid">
-          <div class="contract-card">
-            <div class="contract-label">AtlasVaultV2</div>
-            <a class="contract-addr mono" href="https://www.oklink.com/xlayer-test/address/0x2b77AAD51566aeD6ec6feba250450200997BbA22" target="_blank" rel="noopener">0x2b77AAD5…97BbA22</a>
-            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
-              ERC-4626-shaped. NAV = idle + Σ registered strategy equity. External EOAs cannot inflate.
+        <!-- Live ticker -->
+        <div class="ticker fade-in" style="margin-top: 36px; max-width: 980px;">
+          <span class="ticker-label">live</span>
+          <span class="ticker-track" id="ticker-track">
+            <span class="ticker-item">spinning up…</span>
+          </span>
+        </div>
+
+        <!-- HERO STATS STRIP -->
+        <div id="vault" class="stats-strip">
+          <div class="stats-strip-inner">
+            <div class="stat">
+              <span class="stat-label">Vault TVL</span>
+              <span class="stat-value">
+                <span data-metric="tvl">—</span><span class="stat-suffix">bUSD</span>
+              </span>
             </div>
-          </div>
-          <div class="contract-card">
-            <div class="contract-label">CascadeLedger</div>
-            <a class="contract-addr mono" href="https://www.oklink.com/xlayer-test/address/0x5abb55245023E7886234102ff338bB70FacCF761" target="_blank" rel="noopener">0x5abb5524…FacCF761</a>
-            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
-              Accepts EIP-712 signed CascadeReceipts. Emits deterministic events — no heuristics.
+            <div class="stat">
+              <span class="stat-label">NAV / Share</span>
+              <span class="stat-value" data-metric="nav">—</span>
             </div>
-          </div>
-          <div class="contract-card">
-            <div class="contract-label">SlashingRegistry</div>
-            <a class="contract-addr mono" href="https://www.oklink.com/xlayer-test/address/0x39e371a7680e7754914384Dd778FF0Eb8d5B6053" target="_blank" rel="noopener">0x39e371a7…8d5B6053</a>
-            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
-              Strategies post stake; fraud claims trigger challenge window; false reporting slashes.
+            <div class="stat">
+              <span class="stat-label">Cascade Receipts</span>
+              <span class="stat-value" data-metric="cascade-events">—</span>
             </div>
-          </div>
-          <div class="contract-card">
-            <div class="contract-label">Strategies (Fear / Greed / Skeptic)</div>
-            <span class="contract-addr mono" style="color: var(--muted);">Custody via SubWallet per strategy</span>
-            <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">
-              Executor submits signed TradeIntents. No EOA touches user capital. P&amp;L from balance deltas.
+            <div class="stat">
+              <span class="stat-label">Upstream Payments</span>
+              <span class="stat-value" data-metric="upstream-payments">—</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="metrics" class="metrics">
-        <div class="metric">
-          <span class="metric-label">Vault TVL (bUSD)</span>
-          <span class="metric-value" data-metric="tvl">—</span>
+      <!-- ============================================================== -->
+      <!-- STRATEGIES -->
+      <!-- ============================================================== -->
+      <section id="strategies">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Strategy leaderboard</div>
+            <p class="section-sub">
+              Three strategies under vault custody. Equity is valued at 30-min TWAP; P&amp;L
+              from balance snapshots — no agent-supplied numbers.
+            </p>
+          </div>
+          <div class="section-meta">
+            <span class="status-dot"></span>
+            <span>refreshing every 60s</span>
+          </div>
         </div>
-        <div class="metric">
-          <span class="metric-label">NAV / share</span>
-          <span class="metric-value" data-metric="nav">—</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Signed cascade receipts</span>
-          <span class="metric-value" data-metric="trades">—</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Upstream payments anchored</span>
-          <span class="metric-value" data-metric="cascade">—</span>
-        </div>
-      </section>
-
-      <section id="leaderboard">
-        <h2>Strategy leaderboard</h2>
-        <p class="section-sub">
-          Three strategies under vault custody. Equity is valued at the 30-minute TWAP; P&amp;L
-          derives from balance snapshots vs cumulative debt — no agent-supplied numbers.
-        </p>
-        <div id="agents-grid" class="agents-grid">
-          <div class="agent-card placeholder">Loading strategies…</div>
+        <div id="agents-grid" class="strategies-grid">
+          <div class="strategy-card placeholder">Loading strategies…</div>
         </div>
       </section>
 
+      <!-- ============================================================== -->
+      <!-- CASCADE -->
+      <!-- ============================================================== -->
       <section id="cascade">
-        <h2>Signed cascade receipts</h2>
-        <p class="section-sub">
-          Each row is an <b>EIP-712 signed CascadeReceipt</b> anchored to the on-chain
-          <span class="mono">CascadeLedger</span> — composite → N upstream settlements,
-          cryptographically proven, indexable via The Graph. Click to inspect the underlying
-          x402 payments on OKLink.
-        </p>
+        <div class="section-head">
+          <div>
+            <div class="section-title">Signed cascade receipts</div>
+            <p class="section-sub">
+              Each row is an <b>EIP-712 signed CascadeReceipt</b> anchored on-chain via
+              <span class="mono">CascadeLedger</span> — composite → N upstream
+              settlements, cryptographically proven, indexable via The Graph. Click any
+              row to inspect the underlying x402 payment on OKLink.
+            </p>
+          </div>
+          <div class="section-meta">
+            <span class="status-dot"></span>
+            <span>powered by CascadeLedger</span>
+          </div>
+        </div>
         <div id="cascade-feed" class="cascade-feed">
-          <div class="cascade-empty">No signed receipts anchored yet. Skeptic anchors receipts after every paid signal purchase.</div>
+          <div class="cascade-empty">No signed receipts anchored yet. Skeptic anchors after every paid signal.</div>
         </div>
       </section>
 
+      <!-- ============================================================== -->
+      <!-- HOW IT WORKS -->
+      <!-- ============================================================== -->
       <section id="how">
-        <h2>How Atlas works</h2>
+        <div class="section-head">
+          <div>
+            <div class="section-title">How the cascade works</div>
+            <p class="section-sub">
+              Two primitives compose into one provable economic loop.
+            </p>
+          </div>
+        </div>
         <ol class="steps">
-          <li>
-            <span class="step-num">1</span>
-            <div>
-              <h3>Deposit bUSD</h3>
-              <p>You deposit Beacon USD into <span class="mono">AtlasVault</span> on X Layer testnet. You receive ATLS shares pro-rata to NAV. Your shares track the live equity of the entire agent pool.</p>
-            </div>
+          <li class="step">
+            <div class="step-num">01 — DEFINE</div>
+            <h3>Publish a Signal</h3>
+            <p><span class="mono">defineSignal({ slug, price, handler })</span> — your endpoint becomes a paid x402 resource on X Layer, registered on-chain in <span class="mono">SignalRegistry</span>.</p>
           </li>
-          <li>
-            <span class="step-num">2</span>
-            <div>
-              <h3>Three agents compete</h3>
-              <p><b>Fear</b> chases momentum. <b>Greed</b> mean-reverts. <b>Skeptic</b> consults the Beacon signal layer before every trade. They share an AMM, run on a 30-second tick, and trade against each other's price impact.</p>
-            </div>
+          <li class="step">
+            <div class="step-num">02 — COMPOSE</div>
+            <h3>Compose into a cascade</h3>
+            <p><span class="mono">defineComposite({ upstream, shareBps })</span> — every call to your composite cascades x402 payments to upstream authors. The composite signs an EIP-712 receipt of the payment graph.</p>
           </li>
-          <li>
-            <span class="step-num">3</span>
-            <div>
-              <h3>Intelligence costs real money</h3>
-              <p>Skeptic pays Beacon signals via <span class="mono">x402</span> before each trade. The cost comes out of its book. If the signals don't generate alpha, Skeptic loses to Fear and Greed. Cascade payments aren't theater — they're a tradeoff.</p>
-            </div>
+          <li class="step">
+            <div class="step-num">03 — TRADE</div>
+            <h3>Skeptic pays for intelligence</h3>
+            <p>The Skeptic strategy buys <span class="mono">safe-yield</span> via x402 before each trade. Signal cost is real performance drag — the data must beat the cost or it's overpriced.</p>
           </li>
-          <li>
-            <span class="step-num">4</span>
-            <div>
-              <h3>Performance compounds, on-chain</h3>
-              <p>Every trade, every signal call, every PnL delta is recorded on <span class="mono">AgentRegistry</span>. The leaderboard is live, public, and will outlast the hackathon. Reputation accrues to the strategies that actually work.</p>
-            </div>
+          <li class="step">
+            <div class="step-num">04 — ANCHOR</div>
+            <h3>Anchor on-chain</h3>
+            <p>The signed CascadeReceipt is submitted to <span class="mono">CascadeLedger</span> — emits <span class="mono">CascadeSettled</span> + <span class="mono">UpstreamPaid</span> events. The fan-out is provably real.</p>
           </li>
         </ol>
       </section>
 
+      <!-- ============================================================== -->
+      <!-- CTA - SDK -->
+      <!-- ============================================================== -->
+      <section id="sdk">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Build on @beacon/sdk</div>
+            <p class="section-sub">
+              Five minutes to ship a paid signal. Composite cascades + signed receipts come for free.
+            </p>
+          </div>
+          <a class="btn" href="https://github.com/Ridwannurudeen/beacon/tree/main/packages/sdk" target="_blank" rel="noopener">
+            View on GitHub →
+          </a>
+        </div>
+        <pre class="code-block"><span class="comment">// npm install @beacon/sdk</span>
+
+import { defineSignal, xLayerTestnetWalletClient } from <span class="string">"@beacon/sdk"</span>;
+
+const signal = defineSignal({
+  slug:        <span class="string">"my-signal"</span>,
+  description: <span class="string">"What this returns"</span>,
+  price:       <span class="keyword">1500n</span>,           <span class="comment">// 0.0015 bUSD per call</span>
+  payTo:       account.address,
+  token:       bUSDDescriptor,
+  chainId:     <span class="keyword">1952</span>,
+  settlementWallet,
+  handler: <span class="keyword">async</span> (ctx) =&gt; ({ <span class="comment">/* your data */</span> }),
+});</pre>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CONTRACTS -->
+      <!-- ============================================================== -->
       <section id="contracts">
-        <h2>On-chain</h2>
+        <div class="section-head">
+          <div>
+            <div class="section-title">On-chain</div>
+            <p class="section-sub">All addresses on X Layer testnet (chainId 1952). Click to inspect on OKLink.</p>
+          </div>
+        </div>
         <div class="contracts-grid">
           <div class="contract-card">
-            <div class="contract-label">AtlasVault</div>
-            <a class="contract-addr mono" data-contract="AtlasVault" target="_blank" rel="noopener">—</a>
+            <div class="contract-label">AtlasVaultV2</div>
+            <a class="contract-addr" data-contract="AtlasVaultV2" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">ERC-4626 + Pausable. NAV from vault-controlled sub-wallets only.</div>
           </div>
           <div class="contract-card">
-            <div class="contract-label">AgentRegistry</div>
-            <a class="contract-addr mono" data-contract="AgentRegistry" target="_blank" rel="noopener">—</a>
+            <div class="contract-label">CascadeLedger</div>
+            <a class="contract-addr" data-contract="CascadeLedger" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">EIP-712 signed receipts → deterministic events.</div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">TwapOracle</div>
+            <a class="contract-addr" data-contract="TwapOracle" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">30-min TWAP — kills flash-loan NAV manipulation.</div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">SlashingRegistry</div>
+            <a class="contract-addr" data-contract="SlashingRegistry" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">Stake + challenge window + fraud proofs.</div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">Fear (momentum)</div>
+            <a class="contract-addr" data-contract="Fear" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">Rides 30-bps moves. No paid signals.</div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">Greed (mean-revert)</div>
+            <a class="contract-addr" data-contract="Greed" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">Fades 50-bps deviations. No paid signals.</div>
+          </div>
+          <div class="contract-card">
+            <div class="contract-label">Skeptic (signal-driven)</div>
+            <a class="contract-addr" data-contract="Skeptic" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">Pays Beacon for intel. Anchors receipts on-chain.</div>
           </div>
           <div class="contract-card">
             <div class="contract-label">DemoAMM</div>
-            <a class="contract-addr mono" data-contract="DemoAMM" target="_blank" rel="noopener">—</a>
+            <a class="contract-addr" data-contract="DemoAMM" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">Uniswap v2-shape pool (bUSD/MOCK-X).</div>
           </div>
           <div class="contract-card">
-            <div class="contract-label">bUSD</div>
-            <a class="contract-addr mono" data-contract="bUSD" target="_blank" rel="noopener">—</a>
+            <div class="contract-label">bUSD (EIP-3009)</div>
+            <a class="contract-addr" data-contract="bUSD" target="_blank" rel="noopener">—</a>
+            <div class="contract-note">Settlement token. Open-mint for testnet.</div>
           </div>
         </div>
       </section>
     </main>
 
     <footer>
-      <div>ATLAS · X Layer testnet · powered by Beacon signal layer</div>
-      <div>
-        <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://www.oklink.com/xlayer-test" target="_blank" rel="noopener">Explorer</a>
-        <a href="https://web3.okx.com/xlayer" target="_blank" rel="noopener">X Layer</a>
+      <div class="footer-inner">
+        <div>
+          BEACON · ATLAS V2 · running on X Layer testnet · 42/42 contract tests pass
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.oklink.com/xlayer-test" target="_blank" rel="noopener">OKLink</a>
+          <a href="https://web3.okx.com/xlayer" target="_blank" rel="noopener">X Layer</a>
+          <a href="/atlas.json">atlas.json</a>
+        </div>
       </div>
     </footer>
 

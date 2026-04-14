@@ -3,67 +3,91 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Atlas — Deposit</title>
+    <title>Beacon · Atlas — Deposit</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
-  <body class="autopilot">
-    <header>
-      <nav>
-        <a href="/" class="brand">ATLAS</a>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a href="/" class="brand">
+          <span class="brand-mark"></span>
+          <span>BEACON</span>
+          <span class="brand-sub">/ ATLAS V2</span>
+        </a>
         <div class="nav-right">
-          <span class="pill">Deposit · testnet</span>
+          <a class="nav-link" href="/">← Dashboard</a>
+          <span class="status-pill">
+            <span class="status-dot"></span>
+            <span>X Layer Testnet</span>
+          </span>
         </div>
       </nav>
     </header>
 
-    <main class="autopilot-main">
-      <section class="autopilot-hero">
-        <h1>Deposit bUSD into Atlas</h1>
-        <p class="lead">
-          Mint ATLS shares pro-rata to current NAV. Your share value tracks the equity of
-          the agent pool — including their wins, losses, and signal-cascade spend.
+    <main>
+      <section class="hero" style="padding: 60px 0 30px;">
+        <div class="hero-badge">
+          <span class="pill">ERC-4626</span>
+          <span>vault custody · idle redemption · ATLS shares</span>
+        </div>
+        <h1 style="font-size: clamp(36px, 4.5vw, 56px);">Deposit bUSD into <em>Atlas V2</em>.</h1>
+        <p class="hero-lead">
+          Mint <span class="mono">ATLS</span> shares pro-rata to current NAV. Your share value
+          tracks the live equity of three competing strategies — including their wins, losses,
+          and Skeptic's signal-cascade spend.
         </p>
       </section>
 
-      <section class="autopilot-grid">
-        <div class="card">
-          <h3>1. Connect</h3>
-          <button id="connect" class="btn primary">Connect wallet</button>
-          <div id="account" class="dim">Not connected</div>
-        </div>
+      <section style="margin-top: 40px;">
+        <div class="deposit-grid">
+          <div class="deposit-card">
+            <h3>1 — Connect</h3>
+            <button id="connect" class="btn primary">Connect wallet</button>
+            <div id="account" class="dim">Not connected</div>
+          </div>
 
-        <div class="card">
-          <h3>2. Deposit</h3>
-          <label>
-            Amount (bUSD)
-            <input id="amount" type="number" value="100" min="1" step="1" />
-          </label>
-          <button id="approve" class="btn" disabled>Approve bUSD</button>
-          <button id="deposit" class="btn primary" disabled>Deposit →</button>
-        </div>
+          <div class="deposit-card">
+            <h3>2 — Deposit</h3>
+            <label class="field">
+              Amount (bUSD)
+              <input id="amount" type="number" value="100" min="1" step="1" />
+            </label>
+            <button id="approve" class="btn" disabled>Approve bUSD</button>
+            <button id="deposit" class="btn primary" disabled>Deposit →</button>
+          </div>
 
-        <div class="card">
-          <h3>3. Status</h3>
-          <div id="status" class="strategy">
-            <span class="dim">Connect a wallet to begin.</span>
+          <div class="deposit-card">
+            <h3>3 — Status</h3>
+            <div id="status" class="status-box">
+              <span class="dim">Connect a wallet to begin.</span>
+            </div>
           </div>
         </div>
-      </section>
 
-      <section class="footnote">
-        <h4>Need bUSD?</h4>
-        <p style="color: var(--muted); font-size: 14px;">
-          Beacon USD (bUSD) is an open-mint EIP-3009 token on X Layer testnet. Mint any amount
-          to yourself by calling <span class="mono">mint(yourAddress, amount)</span> on
-          <a class="mono" id="busd-link" target="_blank" rel="noopener">bUSD</a>.
-          Each unit has 6 decimals — pass <span class="mono">100000000</span> for 100 bUSD.
-        </p>
+        <div class="footnote">
+          <h4>Need bUSD?</h4>
+          <p>
+            Beacon USD (bUSD) is an open-mint EIP-3009 token on X Layer testnet. Mint any amount
+            to yourself by calling <span class="mono">mint(yourAddress, amount)</span> on
+            <a class="mono" id="busd-link" target="_blank" rel="noopener">bUSD</a>.
+            Each unit has 6 decimals — pass <span class="mono">100000000</span> for 100 bUSD.
+            <br /><br />
+            <b>Withdraw semantics:</b> ERC-4626 withdrawals come from the vault's idle bUSD
+            balance. For larger redemptions when capital is allocated to strategies, use the
+            <span class="mono">WithdrawQueue</span> (request → admin recall → claim).
+          </p>
+        </div>
       </section>
     </main>
 
     <footer>
-      <div>ATLAS · Deposit</div>
-      <div><a href="/">← Home</a></div>
+      <div class="footer-inner">
+        <div>BEACON · ATLAS V2 · Deposit</div>
+        <div class="footer-links">
+          <a href="/">← Home</a>
+        </div>
+      </div>
     </footer>
 
     <script type="module" src="/src/deposit.ts"></script>

@@ -104,8 +104,9 @@ async function approve() {
     method: "eth_sendTransaction",
     params: [{ from: account, to: atlas.contracts.bUSD, data }],
   });
+  const sh = (tx ?? "").length > 14 ? `${tx?.slice(0, 8)}…${tx?.slice(-6)}` : tx;
   logStatus(
-    `<div>Approve sent: <a href="https://www.oklink.com/xlayer-test/tx/${tx}" target="_blank">${tx?.slice(0, 14)}…</a></div>`
+    `<span class="ok">approve sent</span><div style="margin-top:8px"><a href="https://www.oklink.com/xlayer-test/tx/${tx}" target="_blank">${sh}</a></div>`
   );
 }
 
@@ -120,8 +121,9 @@ async function deposit() {
     method: "eth_sendTransaction",
     params: [{ from: account, to: atlas.contracts.AtlasVaultV2, data }],
   });
+  const sh = (tx ?? "").length > 14 ? `${tx?.slice(0, 8)}…${tx?.slice(-6)}` : tx;
   logStatus(
-    `<div class="rec">Deposit sent</div><div style="margin-top:8px"><a href="https://www.oklink.com/xlayer-test/tx/${tx}" target="_blank">${tx?.slice(0, 14)}…</a></div><div style="margin-top:8px;color:var(--muted);font-size:13px">ATLS shares mint on confirmation. Withdraw semantics: idle-liquidity only — use the WithdrawQueue for larger redemptions.</div>`
+    `<span class="ok">deposit sent</span><div style="margin-top:8px"><a href="https://www.oklink.com/xlayer-test/tx/${tx}" target="_blank">${sh}</a></div><div style="margin-top:10px;color:var(--text-3);font-size:12px;line-height:1.55">ATLS shares mint on confirmation. Withdraw via idle-liquidity (ERC-4626) or the WithdrawQueue for larger redemptions.</div>`
   );
 }
 
