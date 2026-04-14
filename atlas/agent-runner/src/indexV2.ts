@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
- * Atlas V2 agent-runner — submits signed intents to on-chain TradingStrategy
- * contracts. Executors (this process) have zero custody over funds.
+ * Atlas V2 agent-runner. Submits signed intents to on-chain TradingStrategy
+ * contracts + (for Skeptic) buys Beacon signals via x402 and anchors the
+ * signed CascadeReceipts to CascadeLedger. Executors have zero custody.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as dotenv from "dotenv";
 import type { Address } from "viem";
+import type { SettlementToken } from "@beacon/sdk";
 import { AgentRunnerV2 } from "./runnerV2.js";
 import { MarketMover } from "./market-mover.js";
 import { fear } from "./strategies/fear.js";
@@ -20,6 +22,9 @@ const RPC_URL = process.env.XLAYER_TESTNET_RPC ?? "https://testrpc.xlayer.tech";
 const DEPLOY_DIR = process.env.DEPLOY_DIR ?? resolve(process.cwd(), "../../contracts/deployments");
 
 const v2 = JSON.parse(readFileSync(resolve(DEPLOY_DIR, "xlayerTestnet.atlasV2.json"), "utf-8"));
+const tokenDep = JSON.parse(
+  readFileSync(resolve(DEPLOY_DIR, "xlayerTestnet.testtoken.json"), "utf-8")
+);
 
 const EXECUTOR_FEAR = process.env.FEAR_PRIVATE_KEY as `0x${string}` | undefined;
 const EXECUTOR_GREED = process.env.GREED_PRIVATE_KEY as `0x${string}` | undefined;
@@ -33,6 +38,16 @@ if (!EXECUTOR_FEAR || !EXECUTOR_GREED || !EXECUTOR_SKEPTIC || !MOVER_KEY) {
 const bUSD = v2.contracts.bUSD as Address;
 const mockX = v2.contracts.MockX as Address;
 const amm = v2.contracts.DemoAMM as Address;
+const ledger = v2.contracts.CascadeLedger as Address;
+const SAFE_YIELD_URL = process.env.SAFE_YIELD_URL ?? "https://safe-yield.gudman.xyz/signal";
+
+const busdToken: SettlementToken = {
+  address: tokenDep.token.address,
+  symbol: tokenDep.token.symbol,
+  decimals: tokenDep.token.decimals,
+  eip712Name: tokenDep.token.name,
+  eip712Version: tokenDep.token.version,
+};
 
 const runners = [
   new AgentRunnerV2(
@@ -42,7 +57,9 @@ const runners = [
       asset: bUSD,
       other: mockX,
       amm,
+      cascadeLedger: ledger,
       rpcUrl: RPC_URL,
+      consumesSignals: false,
     },
     fear
   ),
@@ -53,7 +70,9 @@ const runners = [
       asset: bUSD,
       other: mockX,
       amm,
+      cascadeLedger: ledger,
       rpcUrl: RPC_URL,
+      consumesSignals: false,
     },
     greed
   ),
@@ -64,7 +83,14 @@ const runners = [
       asset: bUSD,
       other: mockX,
       amm,
+      cascadeLedger: ledger,
       rpcUrl: RPC_URL,
+      signalUrl: SAFE_YIELD_URL,
+      busdToken,
+      signalPrice: 6000n,
+      demoAsset: bUSD,
+      consumesSignals: true,
+      chainId: 1952,
     },
     skeptic
   ),
@@ -82,12 +108,13 @@ const mover = new MarketMover({
 
 async function main() {
   console.log(`Atlas V2 agent-runner started`);
-  console.log(`  Vault:    ${v2.contracts.AtlasVaultV2}`);
-  console.log(`  Fear:     ${v2.contracts.Fear}`);
-  console.log(`  Greed:    ${v2.contracts.Greed}`);
-  console.log(`  Skeptic:  ${v2.contracts.Skeptic}`);
-  console.log(`  Ledger:   ${v2.contracts.CascadeLedger}`);
-  console.log(`  mover:    ${mover.address}`);
+  console.log(`  Vault:         ${v2.contracts.AtlasVaultV2}`);
+  console.log(`  Fear:          ${v2.contracts.Fear}`);
+  console.log(`  Greed:         ${v2.contracts.Greed}`);
+  console.log(`  Skeptic:       ${v2.contracts.Skeptic}  (x402 signal consumer)`);
+  console.log(`  CascadeLedger: ${ledger}`);
+  console.log(`  signal URL:    ${SAFE_YIELD_URL}`);
+  console.log(`  mover:         ${mover.address}`);
 
   for (const r of runners) {
     await r.init();
