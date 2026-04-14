@@ -107,10 +107,7 @@ export class AgentRunnerV2 {
       agent: { name: this.strategy.name, address: this.cfg.strategy, strategy: this.strategy.strategy },
       market: { spotXInBUSD: spot, history: this.history.slice() },
       book: { bUSD: bBal, mockX: xBal },
-      // V2 strategies don't buy signals directly through the runner — Skeptic
-      // queries Beacon signals through a separate path that lands on-chain
-      // via the sub-wallet. For MVP v2, no signals.
-      buySignal: async () => null,
+      buySignal: (slug) => this.buySignal(slug),
     });
 
     if (decision.type === "hold") {
