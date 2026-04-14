@@ -138,18 +138,18 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
   // runs on every matched request including mounted routes.
   signal.app.use("*", async (c: Context, next: () => Promise<void>) => {
     await next();
-    if (c.res.status !== 200) return;
+    if (!c.res || c.res.status !== 200) return;
 
     const paymentResponse = c.res.headers.get("X-Payment-Response");
     if (!paymentResponse) return;
+
+    console.log(`[defineComposite] signing receipt for ${c.req.path}`);
 
     try {
       const decoded = JSON.parse(Buffer.from(paymentResponse, "base64").toString());
       const buyer = decoded.payer as Address;
       const buyerSettlementTx = decoded.transaction as Hex;
 
-      // Re-read the response body to recover the cascade array. Hono's
-      // Response body is a stream; clone() lets us read without consuming.
       const bodyText = await c.res.clone().text();
       const body = JSON.parse(bodyText) as {
         cascade?: Array<{ slug: string; paymentTx?: Hex; upstream: Address }>;
@@ -182,7 +182,15 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
       const domain = buildCascadeDomain(BigInt(chainId), opts.cascadeLedger);
       const signed = await signCascadeReceipt(opts.payerWallet, receipt, domain);
 
-      c.res.headers.set("X-Cascade-Receipt", encodeCascadeReceiptHeader(signed));
+      // Reconstruct response so header mutation propagates through Hono/node-server.
+      const newHeaders = new Headers(c.res.headers);
+      newHeaders.set("X-Cascade-Receipt", encodeCascadeReceiptHeader(signed));
+      c.res = new Response(bodyText, {
+        status: c.res.status,
+        statusText: c.res.statusText,
+        headers: newHeaders,
+      });
+      console.log(`[defineComposite] receipt attached (${upstreamPayments.length} upstreams)`);
     } catch (e) {
       console.warn(`[defineComposite] receipt signing: ${(e as Error).message}`);
     }
