@@ -10,6 +10,8 @@
     "deploy:xlayer-testnet": "hardhat run scripts/deploy.ts --network xlayerTestnet",
     "deploy-token:xlayer-testnet": "hardhat run scripts/deployTestToken.ts --network xlayerTestnet",
     "deploy-atlas:xlayer-testnet": "hardhat run scripts/deployAtlas.ts --network xlayerTestnet",
+    "deploy-atlas-v2:xlayer-testnet": "hardhat run scripts/deployAtlasV2.ts --network xlayerTestnet",
+    "setup-atlas-v2:xlayer-testnet": "hardhat run scripts/setupAtlasV2.ts --network xlayerTestnet",
     "fund-atlas:xlayer-testnet": "hardhat run scripts/fundAtlasAgents.ts --network xlayerTestnet",
     "publish:xlayer": "hardhat run scripts/publishSignals.ts --network xlayer",
     "publish:xlayer-testnet": "hardhat run scripts/publishSignals.ts --network xlayerTestnet",

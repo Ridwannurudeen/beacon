@@ -1,0 +1,19 @@
+[Unit]
+Description=Atlas V2 — on-chain strategy executor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/beacon/atlas/agent-runner
+EnvironmentFile=/opt/beacon/atlas/agent-runner/.env
+ExecStart=/usr/bin/node /opt/beacon/atlas/agent-runner/dist/indexV2.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atlas-agent-runner-v2
+
+[Install]
+WantedBy=multi-user.target

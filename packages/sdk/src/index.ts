@@ -39,3 +39,18 @@ export type {
   UpstreamDependency,
   CompositeFetchResult,
 } from "./types.js";
+export {
+  buildCascadeDomain,
+  encodeCascadeReceiptHeader,
+  decodeCascadeReceiptHeader,
+  signCascadeReceipt,
+  verifyCascadeReceipt,
+  computeReceiptId,
+  CASCADE_RECEIPT_TYPES,
+} from "./receipt.js";
+export type {
+  UpstreamPayment,
+  CascadeReceipt,
+  CascadeDomain,
+  SignedCascadeReceipt,
+} from "./receipt.js";

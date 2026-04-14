@@ -1,9 +1,16 @@
 import type { Context } from "hono";
-import type { Address, Hex, WalletClient } from "viem";
+import { keccak256, encodePacked, type Address, type Hex, type WalletClient } from "viem";
 import { defineSignal, type DefineSignalOptions } from "./signal.js";
 import { fetchWithPayment } from "./client.js";
 import type { SettlementToken } from "./chains.js";
 import type { CompositeFetchResult, UpstreamDependency } from "./types.js";
+import {
+  buildCascadeDomain,
+  encodeCascadeReceiptHeader,
+  signCascadeReceipt,
+  type CascadeReceipt,
+  type UpstreamPayment,
+} from "./receipt.js";
 
 export interface DefineCompositeOptions<TOutput>
   extends Omit<DefineSignalOptions<TOutput>, "handler"> {
@@ -18,17 +25,19 @@ export interface DefineCompositeOptions<TOutput>
   upstreamTokenResolver?: (assetAddress: Address) => SettlementToken;
   /**
    * Transform the buyer's HTTP request into the query string each upstream
-   * expects. Different upstreams take different param keys (wallet-risk wants
-   * `address`, yield-score wants `asset`, liquidity-depth wants `tokenA/tokenB`)
-   * so a single forward doesn't work — the composite author declares this
-   * mapping once.
-   *
-   * Default: forward the buyer's query string unchanged.
+   * expects. Default: forward the buyer's query string unchanged.
    */
   upstreamQuery?: (
     ctx: Context,
     upstream: UpstreamDependency
   ) => Record<string, string>;
+  /**
+   * Optional on-chain CascadeLedger address. Receipts are signed against this
+   * contract's EIP-712 domain so callers can submit them for deterministic
+   * event emission. Defaults to address(0) — signatures are still valid, just
+   * with no on-chain home.
+   */
+  cascadeLedger?: Address;
   handler: (args: {
     ctx: Context;
     upstreams: Record<string, CompositeFetchResult>;
@@ -41,6 +50,11 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
     upstreamBySlug.set(slugFromUrl(up.url), up);
   }
 
+  const compositeAddress = opts.payerWallet.account?.address;
+  if (!compositeAddress) {
+    throw new Error("defineComposite: payerWallet must have an account (for receipt signing)");
+  }
+
   const wrapped: DefineSignalOptions<{
     output: TOutput;
     cascade: Array<{ slug: string; paymentTx?: Hex; upstream: Address }>;
@@ -48,6 +62,7 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
     ...opts,
     handler: async (ctx) => {
       const cascade: Array<{ slug: string; paymentTx?: Hex; upstream: Address }> = [];
+      const upstreamPayments: UpstreamPayment[] = [];
       const upstreams: Record<string, CompositeFetchResult> = {};
 
       await Promise.all(
@@ -76,21 +91,130 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
             : undefined;
           upstreams[slug] = { upstreamUrl: up.url, data, paymentTx };
           cascade.push({ slug, paymentTx, upstream: up.payTo });
+          if (paymentTx) {
+            upstreamPayments.push({
+              slug,
+              author: up.payTo,
+              amount: up.price,
+              settlementTx: paymentTx,
+            });
+          }
         })
       );
+
+      // Stash the cascade metadata on the Hono context so the signal wrapper can
+      // lift it into a signed CascadeReceipt after the buyer's settlement lands.
+      (ctx as unknown as { __beacon?: Record<string, unknown> }).__beacon = {
+        cascade: upstreamPayments,
+      };
 
       const output = await opts.handler({ ctx, upstreams });
       return { output, cascade };
     },
   };
 
-  const signal = defineSignal(wrapped);
+  // Intercept the signal's onSettled so we can sign + attach a CascadeReceipt
+  // to the response. The composite's payerWallet is also the signer.
+  const originalOnSettled = opts.onSettled;
+  const chainId = opts.chainId ?? 196;
+
+  const signalOpts: DefineSignalOptions<{
+    output: TOutput;
+    cascade: Array<{ slug: string; paymentTx?: Hex; upstream: Address }>;
+  }> = {
+    ...wrapped,
+    onSettled: async (settlement) => {
+      // preserve any caller-provided hook
+      if (originalOnSettled) originalOnSettled(settlement);
+    },
+  };
+
+  const signal = defineSignal(signalOpts);
+
+  // Wrap the Hono route to attach the signed cascade receipt after the
+  // underlying handler produces its response.
+  const originalFetch = signal.app.fetch.bind(signal.app);
+  const wrappedFetch = async (req: Request, ...rest: unknown[]) => {
+    const res = await (originalFetch as (r: Request, ...a: unknown[]) => Promise<Response>)(
+      req,
+      ...rest
+    );
+    // Only sign receipts on successful 200 responses that had an X-Payment header
+    if (res.status !== 200) return res;
+
+    const paymentResponse = res.headers.get("X-Payment-Response");
+    if (!paymentResponse) return res;
+
+    try {
+      const decoded = JSON.parse(Buffer.from(paymentResponse, "base64").toString());
+      const buyer = decoded.payer as Address;
+      const buyerSettlementTx = decoded.transaction as Hex;
+
+      // Read the request body to recover the cascade (the cascade was stored
+      // on the ctx, but by now ctx is gone; easiest path is to re-parse the
+      // response and read its `cascade` field).
+      const bodyText = await res.clone().text();
+      const body = JSON.parse(bodyText) as { cascade: Array<{ slug: string; paymentTx?: Hex; upstream: Address }> };
+      const upstreamPayments: UpstreamPayment[] = (body.cascade ?? [])
+        .filter((c) => c.paymentTx)
+        .map((c) => {
+          const up = opts.upstream.find((u) => slugFromUrl(u.url) === c.slug);
+          return {
+            slug: c.slug,
+            author: c.upstream,
+            amount: up?.price ?? 0n,
+            settlementTx: c.paymentTx as Hex,
+          };
+        });
+
+      const receipt: CascadeReceipt = {
+        composite: compositeAddress,
+        receiptId: keccak256(
+          encodePacked(["address", "bytes32"], [buyer, buyerSettlementTx])
+        ),
+        buyer,
+        buyerAmount: opts.price,
+        settlementToken: resolveTokenAddress(opts.token),
+        buyerSettlementTx,
+        upstreams: upstreamPayments,
+        timestamp: BigInt(Math.floor(Date.now() / 1000)),
+        chainId: BigInt(chainId),
+      };
+      const domain = buildCascadeDomain(BigInt(chainId), opts.cascadeLedger);
+      const signed = await signCascadeReceipt(opts.payerWallet, receipt, domain);
+
+      const newHeaders = new Headers(res.headers);
+      newHeaders.set("X-Cascade-Receipt", encodeCascadeReceiptHeader(signed));
+      return new Response(bodyText, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: newHeaders,
+      });
+    } catch (e) {
+      // Signing is best-effort — a failure shouldn't break the response.
+      console.warn(`[defineComposite] receipt signing failed: ${(e as Error).message}`);
+      return res;
+    }
+  };
+
+  // Mutate the Hono instance so mounting via app.route() still flows through
+  // our wrapper. Hono's fetch is the documented public entry point.
+  signal.app.fetch = wrappedFetch as typeof signal.app.fetch;
+
   return { ...signal, upstream: opts.upstream };
+}
+
+function resolveTokenAddress(token: unknown): Address {
+  if (typeof token === "object" && token !== null && "address" in token) {
+    return (token as { address: Address }).address;
+  }
+  // Named keys resolve via the SDK's internal table, but composites running
+  // against known tokens should pass the descriptor directly. Zero as fallback.
+  return "0x0000000000000000000000000000000000000000";
 }
 
 function forwardAllQuery(ctx: Context): Record<string, string> {
   const out: Record<string, string> = {};
-  // hono ctx.req.query() returns the whole query map
   const all = ctx.req.query();
   if (typeof all === "object" && all !== null) {
     for (const [k, v] of Object.entries(all as Record<string, string>)) {
@@ -103,12 +227,9 @@ function forwardAllQuery(ctx: Context): Record<string, string> {
 function slugFromUrl(url: string): string {
   try {
     const u = new URL(url);
-    // Prefer first pathname segment if meaningful (not 'signal' or similar generic).
     const parts = u.pathname.split("/").filter(Boolean);
     const generic = new Set(["signal", "api", "v1", "v2"]);
     if (parts[0] && !generic.has(parts[0])) return parts[0];
-    // Fall back to the first host label (e.g. "wallet-risk" from
-    // "wallet-risk.gudman.xyz").
     const host = u.host.split(".")[0];
     return host ?? u.host;
   } catch {
