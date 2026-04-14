@@ -26,6 +26,7 @@ const PAY_TO = (process.env.PAY_TO ?? "") as Address;
 const PORT = Number(process.env.PORT ?? 4010);
 const PRICE = BigInt(process.env.PRICE ?? "6000");
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? 1952);
+const CASCADE_LEDGER = (process.env.CASCADE_LEDGER ?? "") as `0x${string}`;
 
 const WALLET_RISK_URL = process.env.WALLET_RISK_URL ?? "http://localhost:4001/signal";
 const LIQUIDITY_DEPTH_URL = process.env.LIQUIDITY_DEPTH_URL ?? "http://localhost:4002/signal";
@@ -92,6 +93,7 @@ const composite = defineComposite({
   chainId: CHAIN_ID,
   settlementWallet,
   payerWallet,
+  cascadeLedger: isAddress(CASCADE_LEDGER) ? (CASCADE_LEDGER as `0x${string}`) : undefined,
   // All upstreams use the same settlement token on testnet — resolver returns it.
   upstreamTokenResolver: () => token,
   // Map the buyer's `?asset=0x…` into the param each upstream expects.
