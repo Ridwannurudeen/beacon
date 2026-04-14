@@ -10,32 +10,47 @@ import {
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { xLayerTestnet } from "@beacon/sdk";
+import {
+  decodeCascadeReceiptHeader,
+  fetchWithPayment,
+  xLayerTestnet,
+  type SettlementToken,
+  type SignedCascadeReceipt,
+} from "@beacon/sdk";
 import type { Strategy, Decision } from "./strategies/types.js";
 import { ERC20_ABI, AMM_ABI } from "./abi.js";
 
 /**
- * V2 AgentRunner — thin submitter that reads the strategy's on-chain state,
- * runs the off-chain decision algorithm, and dispatches signed TradeIntent
- * payloads to `TradingStrategy.submitAction`. All asset movement happens
- * on-chain through the strategy contract; this process has zero custody.
+ * V2 AgentRunner — thin submitter. Reads strategy + AMM state, runs off-chain
+ * strategy logic, dispatches signed TradeIntents to the strategy contract's
+ * `submitAction`. All asset movement is on-chain through the strategy; this
+ * process has zero custody.
  *
- * Key differences from v1:
- *   - Agent EOA = executor, not trader. Executor cannot move funds, only
- *     trigger strategy-gated trades.
- *   - `totalAssets` comes from strategy.totalAssets() on-chain, not EOA balances.
- *   - No recordTrade/recordSignal — the vault's `harvest()` is the source of
- *     truth for P&L. The UI reads AgentTraded events emitted inside the
- *     strategy's `_trade` via DemoAMM's Swap event.
+ * Skeptic restores the x402 signal-buying loop: buys Beacon's safe-yield
+ * composite via fetchWithPayment using its own executor wallet, decodes the
+ * signed CascadeReceipt from the response header, and submits it to
+ * CascadeLedger so the upstream fan-out is provably anchored on-chain.
  */
 
 export interface RunnerV2Config {
   executorPrivateKey: Hex;
-  strategy: Address;        // TradingStrategy contract address
-  asset: Address;           // bUSD
-  other: Address;           // MOCKX
+  strategy: Address;
+  asset: Address;
+  other: Address;
   amm: Address;
+  cascadeLedger: Address;
   rpcUrl: string;
+  /** Beacon composite URL the strategy will poll on significant moves. */
+  signalUrl?: string;
+  /** Settlement token descriptor for x402 payment signing. */
+  busdToken?: SettlementToken;
+  /** Signal call price, base units. Used for logging only. */
+  signalPrice?: bigint;
+  /** Demo asset the composite expects as ?asset=… parameter. */
+  demoAsset?: Address;
+  chainId?: number;
+  /** When true, buySignal() actually calls out to Beacon. Skeptic=true. */
+  consumesSignals?: boolean;
 }
 
 const STRATEGY_ABI = parseAbi([
@@ -44,6 +59,13 @@ const STRATEGY_ABI = parseAbi([
   "function subWallet() view returns (address)",
   "function totalDebt() view returns (uint256)",
   "function name() view returns (string)",
+]);
+
+const LEDGER_ABI = parseAbi([
+  "struct UpstreamPayment { string slug; address author; uint256 amount; bytes32 settlementTx; }",
+  "struct CascadeReceipt { address composite; bytes32 receiptId; address buyer; uint256 buyerAmount; address settlementToken; bytes32 buyerSettlementTx; UpstreamPayment[] upstreams; uint256 timestamp; uint256 chainId; }",
+  "function submit((address,bytes32,address,uint256,address,bytes32,(string,address,uint256,bytes32)[],uint256,uint256) receipt, bytes signature)",
+  "function submitted(bytes32) view returns (bool)",
 ]);
 
 const SLIPPAGE_BPS = 500n;
@@ -94,11 +116,15 @@ export class AgentRunnerV2 {
 
     const [bBal, xBal] = await Promise.all([
       this.rpc.readContract({
-        address: this.cfg.asset, abi: ERC20_ABI, functionName: "balanceOf",
+        address: this.cfg.asset,
+        abi: ERC20_ABI,
+        functionName: "balanceOf",
         args: [this.subWalletAddr],
       }) as Promise<bigint>,
       this.rpc.readContract({
-        address: this.cfg.other, abi: ERC20_ABI, functionName: "balanceOf",
+        address: this.cfg.other,
+        abi: ERC20_ABI,
+        functionName: "balanceOf",
         args: [this.subWalletAddr],
       }) as Promise<bigint>,
     ]);
@@ -119,7 +145,6 @@ export class AgentRunnerV2 {
     const amountIn = isBuy ? decision.amountBUSD : decision.amountX;
     if (amountIn === 0n) return { traded: false, decision, spot };
 
-    // Compute minOut with slippage
     const [reserveA, reserveB] = await Promise.all([
       this.rpc.readContract({
         address: this.cfg.amm, abi: AMM_ABI, functionName: "reserveA",
@@ -137,7 +162,6 @@ export class AgentRunnerV2 {
 
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
 
-    // Encode (bool isBuy, uint256 amountIn, uint256 minOut, uint256 deadline)
     const actionData = encodeAbiParameters(
       [
         { type: "bool" },
@@ -163,6 +187,102 @@ export class AgentRunnerV2 {
     } catch (e) {
       console.warn(`[${this.strategy.name}] submitAction failed: ${(e as Error).message}`);
       return { traded: false, decision, spot };
+    }
+  }
+
+  /**
+   * Purchase a Beacon composite signal via x402. Active only when
+   * `consumesSignals` is true (Skeptic). Decodes the signed CascadeReceipt
+   * from the response and submits it to CascadeLedger so the upstream
+   * fan-out is provably anchored on-chain.
+   */
+  private async buySignal(
+    slug: "wallet-risk" | "liquidity-depth" | "yield-score" | "safe-yield"
+  ): Promise<{ data: unknown; cost: bigint; settlementTx: Hex } | null> {
+    if (!this.cfg.consumesSignals) return null;
+    if (!this.cfg.signalUrl || !this.cfg.busdToken) return null;
+    if (slug !== "safe-yield") return null;
+
+    try {
+      const url = new URL(this.cfg.signalUrl);
+      url.searchParams.set("asset", this.cfg.demoAsset ?? this.cfg.asset);
+      const res = await fetchWithPayment(url.toString(), this.wallet, undefined, {
+        chainId: this.cfg.chainId ?? 1952,
+        tokenResolver: () => this.cfg.busdToken!,
+      });
+      if (!res.ok) {
+        console.warn(`[${this.strategy.name}] safe-yield ${res.status}`);
+        return null;
+      }
+      const data = await res.json();
+
+      const header = res.headers.get("X-Cascade-Receipt");
+      let settlementTx: Hex = ("0x" + "00".repeat(32)) as Hex;
+      if (header) {
+        try {
+          const signed = decodeCascadeReceiptHeader(header);
+          settlementTx = signed.receipt.buyerSettlementTx;
+          await this.anchorReceipt(signed);
+        } catch (e) {
+          console.warn(`[${this.strategy.name}] receipt decode: ${(e as Error).message}`);
+        }
+      }
+      return {
+        data,
+        cost: this.cfg.signalPrice ?? 6000n,
+        settlementTx,
+      };
+    } catch (e) {
+      console.warn(`[${this.strategy.name}] buySignal ${slug} error: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Submit a signed CascadeReceipt to the on-chain ledger. Best-effort and
+   * idempotent — if the ledger has already seen this receipt, no-op.
+   */
+  private async anchorReceipt(signed: SignedCascadeReceipt): Promise<void> {
+    try {
+      const already = (await this.rpc.readContract({
+        address: this.cfg.cascadeLedger,
+        abi: LEDGER_ABI,
+        functionName: "submitted",
+        args: [signed.receipt.receiptId],
+      })) as boolean;
+      if (already) return;
+
+      const receiptTuple = [
+        signed.receipt.composite,
+        signed.receipt.receiptId,
+        signed.receipt.buyer,
+        signed.receipt.buyerAmount,
+        signed.receipt.settlementToken,
+        signed.receipt.buyerSettlementTx,
+        signed.receipt.upstreams.map((u) => [u.slug, u.author, u.amount, u.settlementTx]) as [
+          string,
+          Address,
+          bigint,
+          Hex,
+        ][],
+        signed.receipt.timestamp,
+        signed.receipt.chainId,
+      ] as const;
+
+      const hash = await this.wallet.writeContract({
+        address: this.cfg.cascadeLedger,
+        abi: LEDGER_ABI,
+        functionName: "submit",
+        args: [receiptTuple, signed.signature],
+        account: this.wallet.account!,
+        chain: xLayerTestnet,
+      });
+      await this.rpc.waitForTransactionReceipt({ hash });
+      console.log(
+        `[${this.strategy.name}] cascade anchored → ${hash} (${signed.receipt.upstreams.length} upstream payments)`
+      );
+    } catch (e) {
+      console.warn(`[${this.strategy.name}] anchorReceipt: ${(e as Error).message}`);
     }
   }
 }
