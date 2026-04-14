@@ -56,6 +56,13 @@ export interface DefineSignalOptions<TOutput> {
     amount: bigint;
     txHash: Hex;
   }) => void;
+  /**
+   * Pre-route hook: receives the Hono app BEFORE its route handlers are
+   * registered so callers can attach middleware that wraps them. Composites
+   * use this to install the CascadeReceipt-signing middleware in the correct
+   * position (middleware registered after routes never wraps them in Hono).
+   */
+  preRoute?: (app: Hono) => void;
 }
 
 /**
@@ -92,6 +99,10 @@ export function defineSignal<TOutput>(opts: DefineSignalOptions<TOutput>) {
   };
 
   const app = new Hono();
+
+  // Allow composites / callers to wire middleware before routes are registered
+  // so their .use() actually wraps the route handlers below.
+  if (opts.preRoute) opts.preRoute(app);
 
   app.get("/meta", (c: Context) =>
     c.json({

@@ -1,4 +1,4 @@
-import type { Context } from "hono";
+import type { Context, Hono } from "hono";
 import { keccak256, encodePacked, type Address, type Hex, type WalletClient } from "viem";
 import { defineSignal, type DefineSignalOptions } from "./signal.js";
 import { fetchWithPayment } from "./client.js";
@@ -124,19 +124,14 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
   }> = {
     ...wrapped,
     onSettled: async (settlement) => {
-      // preserve any caller-provided hook
       if (originalOnSettled) originalOnSettled(settlement);
     },
   };
 
-  const signal = defineSignal(signalOpts);
-
-  // Hono middleware — attach signed CascadeReceipt after the handler runs.
-  // Uses middleware (not fetch wrapping) so `app.route("/signal",
-  // composite.app)` in parent servers still runs our logic. Hono's route()
-  // walks the sub-app's route tree directly, bypassing fetch; middleware
-  // runs on every matched request including mounted routes.
-  signal.app.use("*", async (c: Context, next: () => Promise<void>) => {
+  // Attach the middleware BEFORE the route handlers so it wraps them. Hono's
+  // middleware only wraps handlers registered after .use() — registering
+  // via a preRoute hook in defineSignal guarantees correct ordering.
+  const receiptMiddleware = async (c: Context, next: () => Promise<void>) => {
     await next();
     if (!c.res || c.res.status !== 200) return;
 
@@ -194,7 +189,12 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
     } catch (e) {
       console.warn(`[defineComposite] receipt signing: ${(e as Error).message}`);
     }
-  });
+  };
+
+  signalOpts.preRoute = (app: Hono) => {
+    app.use("*", receiptMiddleware);
+  };
+  const signal = defineSignal(signalOpts);
 
   return { ...signal, upstream: opts.upstream };
 }
