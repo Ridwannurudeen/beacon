@@ -131,39 +131,38 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
 
   const signal = defineSignal(signalOpts);
 
-  // Wrap the Hono route to attach the signed cascade receipt after the
-  // underlying handler produces its response.
-  const originalFetch = signal.app.fetch.bind(signal.app);
-  const wrappedFetch = async (req: Request, ...rest: unknown[]) => {
-    const res = await (originalFetch as (r: Request, ...a: unknown[]) => Promise<Response>)(
-      req,
-      ...rest
-    );
-    // Only sign receipts on successful 200 responses that had an X-Payment header
-    if (res.status !== 200) return res;
+  // Hono middleware — attach signed CascadeReceipt after the handler runs.
+  // Uses middleware (not fetch wrapping) so `app.route("/signal",
+  // composite.app)` in parent servers still runs our logic. Hono's route()
+  // walks the sub-app's route tree directly, bypassing fetch; middleware
+  // runs on every matched request including mounted routes.
+  signal.app.use("*", async (c, next) => {
+    await next();
+    if (c.res.status !== 200) return;
 
-    const paymentResponse = res.headers.get("X-Payment-Response");
-    if (!paymentResponse) return res;
+    const paymentResponse = c.res.headers.get("X-Payment-Response");
+    if (!paymentResponse) return;
 
     try {
       const decoded = JSON.parse(Buffer.from(paymentResponse, "base64").toString());
       const buyer = decoded.payer as Address;
       const buyerSettlementTx = decoded.transaction as Hex;
 
-      // Read the request body to recover the cascade (the cascade was stored
-      // on the ctx, but by now ctx is gone; easiest path is to re-parse the
-      // response and read its `cascade` field).
-      const bodyText = await res.clone().text();
-      const body = JSON.parse(bodyText) as { cascade: Array<{ slug: string; paymentTx?: Hex; upstream: Address }> };
+      // Re-read the response body to recover the cascade array. Hono's
+      // Response body is a stream; clone() lets us read without consuming.
+      const bodyText = await c.res.clone().text();
+      const body = JSON.parse(bodyText) as {
+        cascade?: Array<{ slug: string; paymentTx?: Hex; upstream: Address }>;
+      };
       const upstreamPayments: UpstreamPayment[] = (body.cascade ?? [])
-        .filter((c) => c.paymentTx)
-        .map((c) => {
-          const up = opts.upstream.find((u) => slugFromUrl(u.url) === c.slug);
+        .filter((x) => x.paymentTx)
+        .map((x) => {
+          const up = opts.upstream.find((u) => slugFromUrl(u.url) === x.slug);
           return {
-            slug: c.slug,
-            author: c.upstream,
+            slug: x.slug,
+            author: x.upstream,
             amount: up?.price ?? 0n,
-            settlementTx: c.paymentTx as Hex,
+            settlementTx: x.paymentTx as Hex,
           };
         });
 
@@ -183,23 +182,11 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
       const domain = buildCascadeDomain(BigInt(chainId), opts.cascadeLedger);
       const signed = await signCascadeReceipt(opts.payerWallet, receipt, domain);
 
-      const newHeaders = new Headers(res.headers);
-      newHeaders.set("X-Cascade-Receipt", encodeCascadeReceiptHeader(signed));
-      return new Response(bodyText, {
-        status: res.status,
-        statusText: res.statusText,
-        headers: newHeaders,
-      });
+      c.res.headers.set("X-Cascade-Receipt", encodeCascadeReceiptHeader(signed));
     } catch (e) {
-      // Signing is best-effort — a failure shouldn't break the response.
-      console.warn(`[defineComposite] receipt signing failed: ${(e as Error).message}`);
-      return res;
+      console.warn(`[defineComposite] receipt signing: ${(e as Error).message}`);
     }
-  };
-
-  // Mutate the Hono instance so mounting via app.route() still flows through
-  // our wrapper. Hono's fetch is the documented public entry point.
-  signal.app.fetch = wrappedFetch as typeof signal.app.fetch;
+  });
 
   return { ...signal, upstream: opts.upstream };
 }
