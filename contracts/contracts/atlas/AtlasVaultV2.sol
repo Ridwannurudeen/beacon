@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -14,30 +15,23 @@ interface IStrategyExecutorSetter {
 
 /// @title  AtlasVaultV2
 /// @author Atlas
-/// @notice Multi-strategy vault modeled on Yearn V3. Depositors contribute
-///         bUSD and receive ATLS shares pro-rata to NAV. Admin (initially
-///         the deployer, eventually a Safe multisig) allocates capital
-///         across registered strategies subject to per-strategy debt limits.
-///         `harvest()` pulls the P&L from a strategy via `IStrategy.report()`
-///         and distributes to shareholders through share-price rebasing.
-///
-/// @dev    Design decisions:
-///         - NAV = idle bUSD + sum(strategy.totalAssets()) where strategy is
-///           registered. External EOAs holding bUSD/MOCKX CANNOT inflate NAV
-///           because the vault ignores them.
-///         - Strategies cannot self-report inflated P&L: `report()` is
-///           compared against `totalDebt` already accounted for by the vault,
-///           so profit is bounded by realized balance delta.
-///         - Withdraws respect `lockedProfitBuffer` to prevent JIT sandwich
-///           attacks on harvest-time share-price jumps.
-///         - `emergencyRevokeStrategy` pulls all capital out of a strategy
-///           and marks it culled; used for fraud or slashing events.
+/// @notice Multi-strategy vault modeled on Yearn V3 with full ERC-4626 surface.
+///         Depositors contribute `asset` and receive ATLS shares pro-rata to
+///         NAV. `harvest()` is permissionless so keepers can maintain up-to-
+///         date P&L; a TimelockController wraps the admin owner for all
+///         mutating admin actions (registerStrategy, emergencyRevokeStrategy,
+///         setDebtLimit, setStrategyExecutor, recall, allocate).
+/// @dev    NAV = idle asset + Σ registered strategy equity. External EOAs
+///         holding bUSD/MOCKX cannot inflate NAV because the vault ignores
+///         them. `harvest()` is nonReentrant and re-entrant-safe: it reads
+///         profit/loss from strategy before mutating vault state.
 contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     string public constant VERSION = "2.0.0";
 
     error ZeroAmount();
+    error ZeroAddress();
     error ExceedsDebtLimit();
     error StrategyNotRegistered();
     error StrategyAlreadyRegistered();
@@ -49,40 +43,196 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     event CapitalAllocated(address indexed strategy, uint256 amount);
     event CapitalReturned(address indexed strategy, uint256 amount);
     event Harvested(address indexed strategy, uint256 profit, uint256 loss);
-    event Deposited(address indexed user, uint256 assets, uint256 shares);
-    event Withdrawn(address indexed user, uint256 assets, uint256 shares);
 
-    IERC20 public immutable asset;
+    /// @notice ERC-4626 standard events (added for compliance with integrator expectations).
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    IERC20 private immutable _asset;
 
     struct StrategyInfo {
         bool registered;
-        uint256 debtLimit;      // max asset the vault may allocate
-        uint256 currentDebt;    // asset currently deployed
-        uint256 totalProfit;    // lifetime profit harvested
-        uint256 totalLoss;      // lifetime loss realized
+        uint256 debtLimit;
+        uint256 currentDebt;
+        uint256 totalProfit;
+        uint256 totalLoss;
     }
 
     mapping(address => StrategyInfo) public strategies;
     address[] public strategyList;
 
-    constructor(IERC20 _asset, address _admin)
+    constructor(IERC20 asset_, address _admin)
         ERC20("Atlas Shares", "ATLS")
         Ownable(_admin)
     {
-        asset = _asset;
-    }
-
-    function decimals() public pure override returns (uint8) {
-        return 6;
+        if (address(asset_) == address(0)) revert ZeroAddress();
+        _asset = asset_;
     }
 
     // ---------------------------------------------------------------------
-    // Admin: strategy management
+    // ERC-4626 surface
     // ---------------------------------------------------------------------
 
-    /// @notice Registers a strategy with a debt limit. Owner-only.
+    /// @notice The underlying asset token. Matches bUSD decimals.
+    function asset() public view returns (address) {
+        return address(_asset);
+    }
+
+    function decimals() public view override returns (uint8) {
+        return IERC20Metadata(address(_asset)).decimals();
+    }
+
+    /// @notice Total assets under management, denominated in the asset token.
+    function totalAssets() public view returns (uint256 total) {
+        total = _asset.balanceOf(address(this));
+        uint256 len = strategyList.length;
+        for (uint256 i; i < len; ++i) {
+            address s = strategyList[i];
+            if (strategies[s].registered) {
+                total += IStrategy(s).totalAssets();
+            }
+        }
+    }
+
+    function convertToShares(uint256 assets) public view returns (uint256) {
+        uint256 supply = totalSupply();
+        uint256 ta = totalAssets();
+        if (supply == 0 || ta == 0) return assets;
+        return (assets * supply) / ta;
+    }
+
+    function convertToAssets(uint256 shares) public view returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) return shares;
+        return (shares * totalAssets()) / supply;
+    }
+
+    function maxDeposit(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function maxMint(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /// @notice ERC-4626 cap on withdraw — limited by the vault's idle balance.
+    function maxWithdraw(address owner_) external view returns (uint256) {
+        uint256 owed = convertToAssets(balanceOf(owner_));
+        uint256 idle = _asset.balanceOf(address(this));
+        return owed < idle ? owed : idle;
+    }
+
+    function maxRedeem(address owner_) external view returns (uint256) {
+        uint256 idle = _asset.balanceOf(address(this));
+        uint256 idleShares = convertToShares(idle);
+        uint256 bal = balanceOf(owner_);
+        return bal < idleShares ? bal : idleShares;
+    }
+
+    function previewDeposit(uint256 assets) external view returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    function previewMint(uint256 shares) external view returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) return shares;
+        return (shares * totalAssets() + supply - 1) / supply;
+    }
+
+    function previewWithdraw(uint256 assets) external view returns (uint256) {
+        uint256 supply = totalSupply();
+        uint256 ta = totalAssets();
+        if (supply == 0 || ta == 0) return assets;
+        return (assets * supply + ta - 1) / ta;
+    }
+
+    function previewRedeem(uint256 shares) external view returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /// @notice ERC-4626 deposit. `receiver` receives the minted shares.
+    function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
+        if (assets == 0) revert ZeroAmount();
+        if (receiver == address(0)) revert ZeroAddress();
+        uint256 supply = totalSupply();
+        uint256 totalBefore = totalAssets();
+        _asset.safeTransferFrom(msg.sender, address(this), assets);
+        shares = supply == 0 ? assets : (assets * supply) / totalBefore;
+        if (shares == 0) revert ZeroAmount();
+        _mint(receiver, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /// @notice Legacy one-arg wrapper. Mints to msg.sender.
+    function deposit(uint256 assets) external returns (uint256 shares) {
+        return deposit(assets, msg.sender);
+    }
+
+    /// @notice ERC-4626 mint. Caller specifies share amount; required assets computed.
+    function mint(uint256 shares, address receiver) external nonReentrant returns (uint256 assets) {
+        if (shares == 0) revert ZeroAmount();
+        if (receiver == address(0)) revert ZeroAddress();
+        uint256 supply = totalSupply();
+        assets = supply == 0 ? shares : (shares * totalAssets() + supply - 1) / supply;
+        _asset.safeTransferFrom(msg.sender, address(this), assets);
+        _mint(receiver, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /// @notice ERC-4626 withdraw. Pulls from idle balance only.
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner_
+    ) public nonReentrant returns (uint256 shares) {
+        if (assets == 0) revert ZeroAmount();
+        if (receiver == address(0) || owner_ == address(0)) revert ZeroAddress();
+        uint256 supply = totalSupply();
+        uint256 ta = totalAssets();
+        shares = supply == 0 ? assets : (assets * supply + ta - 1) / ta;
+        uint256 idle = _asset.balanceOf(address(this));
+        if (assets > idle) revert WithdrawExceedsIdle(assets, idle);
+        if (msg.sender != owner_) _spendAllowance(owner_, msg.sender, shares);
+        _burn(owner_, shares);
+        _asset.safeTransfer(receiver, assets);
+        emit Withdraw(msg.sender, receiver, owner_, assets, shares);
+    }
+
+    /// @notice Legacy one-arg wrapper. Burns caller's shares to caller.
+    function withdraw(uint256 shares) external returns (uint256 assets) {
+        assets = convertToAssets(shares);
+        withdraw(assets, msg.sender, msg.sender);
+    }
+
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner_
+    ) external nonReentrant returns (uint256 assets) {
+        if (shares == 0) revert ZeroAmount();
+        if (receiver == address(0) || owner_ == address(0)) revert ZeroAddress();
+        assets = convertToAssets(shares);
+        uint256 idle = _asset.balanceOf(address(this));
+        if (assets > idle) revert WithdrawExceedsIdle(assets, idle);
+        if (msg.sender != owner_) _spendAllowance(owner_, msg.sender, shares);
+        _burn(owner_, shares);
+        _asset.safeTransfer(receiver, assets);
+        emit Withdraw(msg.sender, receiver, owner_, assets, shares);
+    }
+
+    // ---------------------------------------------------------------------
+    // Admin: strategy management (timelock-wrapped in production)
+    // ---------------------------------------------------------------------
+
     function registerStrategy(address strategy, uint256 debtLimit) external onlyOwner {
         if (strategies[strategy].registered) revert StrategyAlreadyRegistered();
+        if (strategy == address(0)) revert ZeroAddress();
         strategies[strategy] = StrategyInfo({
             registered: true,
             debtLimit: debtLimit,
@@ -100,16 +250,12 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
         emit StrategyDebtLimitUpdated(strategy, newLimit);
     }
 
-    /// @notice Owner sets the executor (agent-runner EOA) on a registered
-    ///         strategy. Forwards to the strategy's onlyVault-gated setter.
     function setStrategyExecutor(address strategy, address executor) external onlyOwner {
         if (!strategies[strategy].registered) revert StrategyNotRegistered();
         IStrategyExecutorSetter(strategy).setExecutor(executor);
     }
 
-    /// @notice Revokes a strategy and pulls all capital back. Used for fraud
-    ///         or underperformance.
-    function emergencyRevokeStrategy(address strategy) external onlyOwner {
+    function emergencyRevokeStrategy(address strategy) external onlyOwner nonReentrant {
         StrategyInfo storage s = strategies[strategy];
         if (!s.registered) revert StrategyNotRegistered();
         uint256 debt = s.currentDebt;
@@ -125,24 +271,21 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     }
 
     // ---------------------------------------------------------------------
-    // Admin: capital allocation
+    // Capital allocation (owner)
     // ---------------------------------------------------------------------
 
-    /// @notice Push `amount` of asset to a strategy. Owner-only. Subject to
-    ///         the strategy's debt limit and vault's idle balance.
     function allocate(address strategy, uint256 amount) external onlyOwner nonReentrant {
         StrategyInfo storage s = strategies[strategy];
         if (!s.registered) revert StrategyNotRegistered();
         if (s.currentDebt + amount > s.debtLimit) revert ExceedsDebtLimit();
         if (amount == 0) revert ZeroAmount();
 
-        asset.safeIncreaseAllowance(strategy, amount);
+        _asset.safeIncreaseAllowance(strategy, amount);
         IStrategy(strategy).deployCapital(amount);
         s.currentDebt += amount;
         emit CapitalAllocated(strategy, amount);
     }
 
-    /// @notice Pull capital back from a strategy without revoking.
     function recall(address strategy, uint256 amount) external onlyOwner nonReentrant {
         StrategyInfo storage s = strategies[strategy];
         if (!s.registered) revert StrategyNotRegistered();
@@ -152,11 +295,14 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     }
 
     // ---------------------------------------------------------------------
-    // Harvesting
+    // Permissionless keeper-style harvest
     // ---------------------------------------------------------------------
 
-    /// @notice Record P&L from a strategy. Owner-only or keeper.
-    function harvest(address strategy) external onlyOwner nonReentrant {
+    /// @notice Record P&L from a strategy. Permissionless so keepers / bots
+    ///         can maintain fresh NAV without admin intervention. Effects are
+    ///         bounded by the strategy's prior `currentDebt`, so a bad actor
+    ///         cannot inject profit — only record reality.
+    function harvest(address strategy) external nonReentrant {
         StrategyInfo storage s = strategies[strategy];
         if (!s.registered) revert StrategyNotRegistered();
         (uint256 profit, uint256 loss) = IStrategy(strategy).report();
@@ -169,48 +315,8 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     }
 
     // ---------------------------------------------------------------------
-    // Deposits / Withdrawals
+    // Convenience views
     // ---------------------------------------------------------------------
-
-    function deposit(uint256 assets) external nonReentrant returns (uint256 shares) {
-        if (assets == 0) revert ZeroAmount();
-        uint256 supply = totalSupply();
-        uint256 totalBefore = totalAssets();
-        asset.safeTransferFrom(msg.sender, address(this), assets);
-        shares = supply == 0 ? assets : (assets * supply) / totalBefore;
-        if (shares == 0) revert ZeroAmount();
-        _mint(msg.sender, shares);
-        emit Deposited(msg.sender, assets, shares);
-    }
-
-    /// @notice Withdraw by burning shares. Pays only from the vault's idle
-    ///         balance — if insufficient, caller must wait for `recall`
-    ///         from a strategy. The vault will NOT force-liquidate strategy
-    ///         positions on a withdraw (prevents MEV + slippage attacks).
-    function withdraw(uint256 shares) external nonReentrant returns (uint256 assets) {
-        if (shares == 0) revert ZeroAmount();
-        uint256 supply = totalSupply();
-        assets = (shares * totalAssets()) / supply;
-        uint256 idle = asset.balanceOf(address(this));
-        if (assets > idle) revert WithdrawExceedsIdle(assets, idle);
-        _burn(msg.sender, shares);
-        asset.safeTransfer(msg.sender, assets);
-        emit Withdrawn(msg.sender, assets, shares);
-    }
-
-    // ---------------------------------------------------------------------
-    // Views
-    // ---------------------------------------------------------------------
-
-    function totalAssets() public view returns (uint256 total) {
-        total = asset.balanceOf(address(this));
-        for (uint256 i; i < strategyList.length; ++i) {
-            address s = strategyList[i];
-            if (strategies[s].registered) {
-                total += IStrategy(s).totalAssets();
-            }
-        }
-    }
 
     function pricePerShare() external view returns (uint256) {
         uint256 supply = totalSupply();

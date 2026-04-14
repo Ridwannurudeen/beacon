@@ -28,7 +28,7 @@ abstract contract StrategyBase is IStrategy {
 
     address public immutable vault;
     IERC20 public immutable asset; // settlement token (bUSD)
-    address public override subWallet;
+    address public immutable override subWallet;
     string public override name;
 
     /// @notice Cumulative amount the vault has deployed to this strategy. The

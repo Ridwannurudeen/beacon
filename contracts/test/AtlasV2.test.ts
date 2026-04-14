@@ -68,6 +68,7 @@ describe("Atlas V2 — custody, NAV integrity, slashing", () => {
       await bUSD.getAddress(),
       await mockX.getAddress(),
       await amm.getAddress(),
+      ethers.ZeroAddress, // oracle — tests use spot fallback
       "Fear"
     )) as unknown as TradingStrategy;
     await strategyFear.waitForDeployment();

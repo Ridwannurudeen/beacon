@@ -13,6 +13,10 @@ interface IDemoAMM {
     function spotPriceBInA() external view returns (uint256);
 }
 
+interface ITwapOracle {
+    function twap30m() external view returns (uint256);
+}
+
 /// @title  TradingStrategy
 /// @author Atlas
 /// @notice Concrete strategy that trades `asset` (bUSD) against a volatile
@@ -34,25 +38,40 @@ contract TradingStrategy is StrategyBase {
 
     IERC20 public immutable other;     // MOCKX
     IDemoAMM public immutable amm;
+    /// @notice Optional TWAP oracle. If set, `totalAssets()` values volatile
+    ///         positions at the 30-min TWAP instead of raw spot, closing the
+    ///         flash-loan manipulation vector. Zero address keeps legacy
+    ///         spot-based behavior for local dev only.
+    ITwapOracle public immutable oracle;
 
     constructor(
         address _vault,
         address _asset,
         address _other,
         address _amm,
+        address _oracle,
         string memory _name
     ) StrategyBase(_vault, _asset, _name) {
         other = IERC20(_other);
         amm = IDemoAMM(_amm);
+        oracle = ITwapOracle(_oracle);
     }
 
-    /// @notice Total assets valued at current AMM spot (bUSD-equivalent).
+    /// @notice Total assets valued at TWAP (preferred) or spot (fallback).
+    ///         Spot-only mode exists because the oracle needs a seeding
+    ///         period in tests — production deployments always pass a
+    ///         non-zero oracle.
     function totalAssets() public view override returns (uint256) {
         uint256 a = asset.balanceOf(subWallet);
         uint256 b = other.balanceOf(subWallet);
         if (b == 0) return a;
-        uint256 spot = amm.spotPriceBInA();       // asset per other, 1e18 scaled
-        return a + (b * spot) / 1e18;
+        uint256 price;
+        if (address(oracle) != address(0)) {
+            price = oracle.twap30m();
+        } else {
+            price = amm.spotPriceBInA();
+        }
+        return a + (b * price) / 1e18;
     }
 
     /// @dev Executor submits (isBuy, amountIn, minOut, deadline).
