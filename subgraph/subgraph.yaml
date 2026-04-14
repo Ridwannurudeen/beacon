@@ -1,0 +1,123 @@
+specVersion: 0.0.6
+description: Beacon + Atlas — signal registry, agent leaderboard, cascade receipts, vault NAV
+schema:
+  file: ./schema.graphql
+features:
+  - ipfsOnEthereumContracts
+dataSources:
+  - kind: ethereum/contract
+    name: SignalRegistry
+    network: xlayer-testnet
+    source:
+      address: "0x02D1f2324D9D7323CB27FC504b846e9CB2020433"
+      abi: SignalRegistry
+      startBlock: 27500000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Signal
+        - SignalCall
+        - SignalAuthor
+      abis:
+        - name: SignalRegistry
+          file: ./abis/SignalRegistry.json
+      eventHandlers:
+        - event: "SignalRegistered(indexed bytes32,indexed address,string,string,uint256)"
+          handler: handleSignalRegistered
+        - event: "SignalUpdated(indexed bytes32,string,uint256)"
+          handler: handleSignalUpdated
+        - event: "SignalRetired(indexed bytes32)"
+          handler: handleSignalRetired
+        - event: "CompositionSet(indexed bytes32,bytes32[],uint16[])"
+          handler: handleCompositionSet
+        - event: "CallRecorded(indexed bytes32,indexed address,uint256,indexed bytes32)"
+          handler: handleCallRecorded
+      file: ./src/signalRegistry.ts
+
+  - kind: ethereum/contract
+    name: AgentRegistry
+    network: xlayer-testnet
+    source:
+      address: "0x2F41E56C09BB117dD8F1E3B648ADA403e460c454"
+      abi: AgentRegistry
+      startBlock: 27500000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Agent
+        - AgentTrade
+        - AgentSignalCall
+      abis:
+        - name: AgentRegistry
+          file: ./abis/AgentRegistry.json
+      eventHandlers:
+        - event: "AgentRegistered(indexed bytes32,indexed address,string,string,uint256)"
+          handler: handleAgentRegistered
+        - event: "AgentTraded(indexed bytes32,indexed address,uint256,indexed address,uint256,int256,bytes32)"
+          handler: handleAgentTraded
+        - event: "SignalConsumed(indexed bytes32,string,uint256,bytes32)"
+          handler: handleSignalConsumed
+      file: ./src/agentRegistry.ts
+
+  - kind: ethereum/contract
+    name: AtlasVaultV2
+    network: xlayer-testnet
+    source:
+      address: "0x2b77AAD51566aeD6ec6feba250450200997BbA22"
+      abi: AtlasVaultV2
+      startBlock: 27500000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Vault
+        - VaultDeposit
+        - VaultWithdraw
+        - StrategyAllocation
+        - Harvest
+      abis:
+        - name: AtlasVaultV2
+          file: ./abis/AtlasVaultV2.json
+      eventHandlers:
+        - event: "Deposit(indexed address,indexed address,uint256,uint256)"
+          handler: handleDeposit
+        - event: "Withdraw(indexed address,indexed address,indexed address,uint256,uint256)"
+          handler: handleWithdraw
+        - event: "CapitalAllocated(indexed address,uint256)"
+          handler: handleAllocate
+        - event: "CapitalReturned(indexed address,uint256)"
+          handler: handleReturn
+        - event: "Harvested(indexed address,uint256,uint256)"
+          handler: handleHarvest
+        - event: "StrategyRegistered(indexed address,uint256)"
+          handler: handleStrategyRegistered
+      file: ./src/atlasVault.ts
+
+  - kind: ethereum/contract
+    name: CascadeLedger
+    network: xlayer-testnet
+    source:
+      address: "0x5abb55245023E7886234102ff338bB70FacCF761"
+      abi: CascadeLedger
+      startBlock: 27500000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Cascade
+        - UpstreamPayment
+      abis:
+        - name: CascadeLedger
+          file: ./abis/CascadeLedger.json
+      eventHandlers:
+        - event: "CascadeSettled(indexed bytes32,indexed address,indexed address,uint256,address,bytes32,uint256)"
+          handler: handleCascadeSettled
+        - event: "UpstreamPaid(indexed bytes32,indexed uint256,string,indexed address,uint256,bytes32)"
+          handler: handleUpstreamPaid
+      file: ./src/cascadeLedger.ts

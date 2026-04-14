@@ -1,0 +1,146 @@
+type SignalAuthor @entity(immutable: false) {
+  id: Bytes! # address
+  signals: [Signal!]! @derivedFrom(field: "author")
+  totalCalls: BigInt!
+  totalRevenue: BigInt!
+}
+
+type Signal @entity(immutable: false) {
+  id: Bytes! # signalId (keccak(author, slug))
+  author: SignalAuthor!
+  slug: String!
+  url: String!
+  price: BigInt!
+  registeredAt: BigInt!
+  retired: Boolean!
+  callCount: BigInt!
+  cumulativeRevenue: BigInt!
+  upstream: [Bytes!]
+  shares: [Int!]
+  calls: [SignalCall!]! @derivedFrom(field: "signal")
+}
+
+type SignalCall @entity(immutable: true) {
+  id: Bytes! # tx+logIndex
+  signal: Signal!
+  payer: Bytes!
+  amount: BigInt!
+  settlement: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Agent @entity(immutable: false) {
+  id: Bytes! # agentId
+  wallet: Bytes!
+  name: String!
+  strategy: String!
+  startingCapital: BigInt!
+  registeredAt: BigInt!
+  tradeCount: BigInt!
+  signalCount: BigInt!
+  cumulativeSignalSpend: BigInt!
+  cumulativePnL: BigInt!
+  trades: [AgentTrade!]! @derivedFrom(field: "agent")
+  signalCalls: [AgentSignalCall!]! @derivedFrom(field: "agent")
+}
+
+type AgentTrade @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  tokenIn: Bytes!
+  amountIn: BigInt!
+  tokenOut: Bytes!
+  amountOut: BigInt!
+  pnlDelta: BigInt!
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type AgentSignalCall @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  signalSlug: String!
+  cost: BigInt!
+  settlementTx: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Vault @entity(immutable: false) {
+  id: Bytes! # vault address
+  totalDeposits: BigInt!
+  totalWithdraws: BigInt!
+  totalAllocated: BigInt!
+  totalReturned: BigInt!
+  totalProfit: BigInt!
+  totalLoss: BigInt!
+  strategies: [StrategyState!]! @derivedFrom(field: "vault")
+  deposits: [VaultDeposit!]! @derivedFrom(field: "vault")
+}
+
+type StrategyState @entity(immutable: false) {
+  id: Bytes! # strategy address
+  vault: Vault!
+  debtLimit: BigInt!
+  currentDebt: BigInt!
+  lastHarvestBlock: BigInt
+  cumulativeProfit: BigInt!
+  cumulativeLoss: BigInt!
+}
+
+type VaultDeposit @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  sender: Bytes!
+  receiver: Bytes!
+  assets: BigInt!
+  shares: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type VaultWithdraw @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  sender: Bytes!
+  receiver: Bytes!
+  owner: Bytes!
+  assets: BigInt!
+  shares: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Harvest @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  strategy: StrategyState!
+  profit: BigInt!
+  loss: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Cascade @entity(immutable: false) {
+  id: Bytes! # receiptId
+  composite: Bytes!
+  buyer: Bytes!
+  buyerAmount: BigInt!
+  settlementToken: Bytes!
+  buyerSettlementTx: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  upstreamPayments: [UpstreamPayment!]! @derivedFrom(field: "cascade")
+}
+
+type UpstreamPayment @entity(immutable: true) {
+  id: Bytes!
+  cascade: Cascade!
+  index: BigInt!
+  slug: String!
+  author: Bytes!
+  amount: BigInt!
+  settlementTx: Bytes!
+}

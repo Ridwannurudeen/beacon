@@ -7,6 +7,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { IStrategy } from "./IStrategy.sol";
 
 interface IStrategyExecutorSetter {
@@ -25,10 +26,10 @@ interface IStrategyExecutorSetter {
 ///         holding bUSD/MOCKX cannot inflate NAV because the vault ignores
 ///         them. `harvest()` is nonReentrant and re-entrant-safe: it reads
 ///         profit/loss from strategy before mutating vault state.
-contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
+contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step, Pausable {
     using SafeERC20 for IERC20;
 
-    string public constant VERSION = "2.0.0";
+    string public constant VERSION = "2.1.0";
 
     error ZeroAmount();
     error ZeroAddress();
@@ -36,6 +37,18 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     error StrategyNotRegistered();
     error StrategyAlreadyRegistered();
     error WithdrawExceedsIdle(uint256 requested, uint256 idle);
+    error OnlyGuardian();
+
+    /// @notice Guardian can pause the vault in an emergency but has no
+    ///         economic powers (no allocate/recall/register). Separation of
+    ///         concerns from admin: admin is slow (24h timelock), guardian is
+    ///         instant. Typical production setup: guardian = 2/4 security
+    ///         multisig, admin = 5/7 governance multisig.
+    address public guardian;
+
+    event GuardianSet(address indexed previous, address indexed next);
+    event PausedByGuardian(address indexed by);
+    event UnpausedByAdmin(address indexed by);
 
     event StrategyRegistered(address indexed strategy, uint256 debtLimit);
     event StrategyDebtLimitUpdated(address indexed strategy, uint256 debtLimit);
@@ -73,6 +86,39 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     {
         if (address(asset_) == address(0)) revert ZeroAddress();
         _asset = asset_;
+        guardian = _admin;
+        emit GuardianSet(address(0), _admin);
+    }
+
+    modifier onlyGuardian() {
+        if (msg.sender != guardian) revert OnlyGuardian();
+        _;
+    }
+
+    /// @notice Admin transfers guardian role. Typically to a separate security
+    ///         multisig. Note: not timelocked — rotating guardian is a rare
+    ///         operational change, not an attack surface.
+    function setGuardian(address newGuardian) external onlyOwner {
+        if (newGuardian == address(0)) revert ZeroAddress();
+        address prev = guardian;
+        guardian = newGuardian;
+        emit GuardianSet(prev, newGuardian);
+    }
+
+    /// @notice Emergency halt. Callable instantly by the guardian. Blocks
+    ///         deposit/withdraw/mint/redeem/allocate. Does NOT block harvest
+    ///         (keepers must still be able to realize losses) or
+    ///         emergencyRevokeStrategy (admin must be able to pull capital
+    ///         from a rogue strategy even while paused).
+    function emergencyPause() external onlyGuardian {
+        _pause();
+        emit PausedByGuardian(msg.sender);
+    }
+
+    /// @notice Unpause. Admin-only — pause is cheap to enter, hard to exit.
+    function unpause() external onlyOwner {
+        _unpause();
+        emit UnpausedByAdmin(msg.sender);
     }
 
     // ---------------------------------------------------------------------
@@ -157,7 +203,7 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     }
 
     /// @notice ERC-4626 deposit. `receiver` receives the minted shares.
-    function deposit(uint256 assets, address receiver) public nonReentrant returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public nonReentrant whenNotPaused returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
         if (receiver == address(0)) revert ZeroAddress();
         uint256 supply = totalSupply();
@@ -175,7 +221,7 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     }
 
     /// @notice ERC-4626 mint. Caller specifies share amount; required assets computed.
-    function mint(uint256 shares, address receiver) external nonReentrant returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) external nonReentrant whenNotPaused returns (uint256 assets) {
         if (shares == 0) revert ZeroAmount();
         if (receiver == address(0)) revert ZeroAddress();
         uint256 supply = totalSupply();
@@ -190,7 +236,7 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
         uint256 assets,
         address receiver,
         address owner_
-    ) public nonReentrant returns (uint256 shares) {
+    ) public nonReentrant whenNotPaused returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
         if (receiver == address(0) || owner_ == address(0)) revert ZeroAddress();
         uint256 supply = totalSupply();
@@ -214,7 +260,7 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
         uint256 shares,
         address receiver,
         address owner_
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant whenNotPaused returns (uint256 assets) {
         if (shares == 0) revert ZeroAmount();
         if (receiver == address(0) || owner_ == address(0)) revert ZeroAddress();
         assets = convertToAssets(shares);
@@ -274,7 +320,7 @@ contract AtlasVaultV2 is ERC20, ReentrancyGuard, Ownable2Step {
     // Capital allocation (owner)
     // ---------------------------------------------------------------------
 
-    function allocate(address strategy, uint256 amount) external onlyOwner nonReentrant {
+    function allocate(address strategy, uint256 amount) external onlyOwner nonReentrant whenNotPaused {
         StrategyInfo storage s = strategies[strategy];
         if (!s.registered) revert StrategyNotRegistered();
         if (s.currentDebt + amount > s.debtLimit) revert ExceedsDebtLimit();

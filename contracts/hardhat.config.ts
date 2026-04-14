@@ -1,5 +1,6 @@
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
+import "hardhat-gas-reporter";
 import { HardhatUserConfig } from "hardhat/config";
 import * as dotenv from "dotenv";
 
@@ -27,6 +28,13 @@ const config: HardhatUserConfig = {
       chainId: 1952,
       accounts,
     },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === "true",
+    currency: "USD",
+    outputFile: process.env.GAS_REPORT_FILE,
+    noColors: !!process.env.GAS_REPORT_FILE,
+    excludeContracts: ["MockERC20", "MockX"],
   },
   etherscan: {
     apiKey: {

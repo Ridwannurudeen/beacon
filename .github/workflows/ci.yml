@@ -1,0 +1,131 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts:
+    name: contracts · tests + slither
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: compile
+        working-directory: contracts
+        run: npx hardhat compile
+      - name: hardhat tests
+        working-directory: contracts
+        run: npx hardhat test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: install slither
+        run: pip install slither-analyzer
+      - name: slither static analysis
+        working-directory: contracts
+        continue-on-error: true
+        run: slither . --filter-paths "node_modules|test" --exclude informational,low
+
+  foundry:
+    name: contracts · foundry invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: install forge-std
+        working-directory: contracts
+        run: |
+          mkdir -p node_modules/forge-std
+          curl -sL https://github.com/foundry-rs/forge-std/archive/refs/tags/v1.9.5.tar.gz | tar xz -C node_modules/forge-std --strip-components=1
+      - name: forge test
+        working-directory: contracts
+        continue-on-error: true
+        run: forge test --profile ci -v
+
+  sdk:
+    name: sdk · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: build sdk
+        working-directory: packages/sdk
+        run: npx tsc -p tsconfig.json
+
+  signals:
+    name: signals · build all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: sdk first
+        working-directory: packages/sdk
+        run: npx tsc -p tsconfig.json
+      - name: wallet-risk
+        working-directory: signals/wallet-risk
+        run: npx tsc -p tsconfig.json
+      - name: liquidity-depth
+        working-directory: signals/liquidity-depth
+        run: npx tsc -p tsconfig.json
+      - name: yield-score
+        working-directory: signals/yield-score
+        run: npx tsc -p tsconfig.json
+      - name: safe-yield
+        working-directory: signals/safe-yield
+        run: npx tsc -p tsconfig.json
+      - name: mcp
+        working-directory: packages/mcp
+        run: npx tsc -p tsconfig.json
+
+  app:
+    name: app · vite build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: vite build
+        working-directory: app
+        run: npx vite build
+
+  atlas-runner:
+    name: atlas-runner · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: sdk first
+        working-directory: packages/sdk
+        run: npx tsc -p tsconfig.json
+      - name: agent-runner
+        working-directory: atlas/agent-runner
+        run: npx tsc -p tsconfig.json
