@@ -136,7 +136,7 @@ export function defineComposite<TOutput>(opts: DefineCompositeOptions<TOutput>) 
   // composite.app)` in parent servers still runs our logic. Hono's route()
   // walks the sub-app's route tree directly, bypassing fetch; middleware
   // runs on every matched request including mounted routes.
-  signal.app.use("*", async (c, next) => {
+  signal.app.use("*", async (c: Context, next: () => Promise<void>) => {
     await next();
     if (c.res.status !== 200) return;
 
