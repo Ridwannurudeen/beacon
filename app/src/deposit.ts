@@ -1,18 +1,19 @@
 /**
- * Atlas deposit page. Browser wallet (window.ethereum) → bUSD.approve(vault) →
- * vault.deposit(amount). Reads atlas.json for contract addresses.
+ * Atlas V2 deposit page. Browser wallet → bUSD.approve(vault) →
+ * vault.deposit(assets, receiver). Reads atlas.json for V2 addresses.
  */
 
 const ATLAS_URL = import.meta.env.VITE_ATLAS_URL ?? "/atlas.json";
 
 interface Atlas {
+  version: "v2";
   chain: { id: number };
-  contracts: { AtlasVault: string; bUSD: string };
+  contracts: { AtlasVaultV2: string; bUSD: string };
 }
 
-const VAULT_DEPOSIT_SELECTOR = "0xb6b55f25"; // deposit(uint256)
-const ERC20_APPROVE_SELECTOR = "0x095ea7b3"; // approve(address,uint256)
-const ERC20_BALANCEOF_SELECTOR = "0x70a08231";
+// bytes4 selectors
+const ERC20_APPROVE = "0x095ea7b3";
+const VAULT_DEPOSIT_TWO_ARG = "0x6e553f65"; // deposit(uint256,address)
 
 const connectBtn = document.getElementById("connect") as HTMLButtonElement;
 const approveBtn = document.getElementById("approve") as HTMLButtonElement;
@@ -24,15 +25,6 @@ const busdLink = document.getElementById("busd-link") as HTMLAnchorElement;
 
 let account: string | null = null;
 let atlas: Atlas | null = null;
-
-function logStatus(html: string) {
-  statusDiv.innerHTML = html;
-}
-
-async function loadAtlas(): Promise<Atlas> {
-  const r = await fetch(ATLAS_URL);
-  return (await r.json()) as Atlas;
-}
 
 function pad32(hex: string): string {
   return hex.replace(/^0x/, "").padStart(64, "0");
@@ -54,11 +46,18 @@ declare global {
   }
 }
 
+function logStatus(html: string) {
+  statusDiv.innerHTML = html;
+}
+
+async function loadAtlas(): Promise<Atlas> {
+  const r = await fetch(ATLAS_URL);
+  return (await r.json()) as Atlas;
+}
+
 async function connect() {
   if (!window.ethereum) {
-    logStatus(
-      `<span style="color: var(--err)">No browser wallet detected. Install MetaMask or OKX Wallet.</span>`
-    );
+    logStatus(`<span style="color: var(--err)">No browser wallet detected.</span>`);
     return;
   }
   const accounts = await window.ethereum.request<string[]>({
@@ -67,7 +66,6 @@ async function connect() {
   account = accounts?.[0] ?? null;
   if (!account) return;
 
-  // Switch to X Layer testnet (chainId 1952 = 0x7a0)
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
@@ -100,11 +98,8 @@ async function connect() {
 async function approve() {
   if (!account || !atlas) return;
   const amount = BigInt(Math.floor(Number(amountInput.value) * 1_000_000));
-  const data =
-    ERC20_APPROVE_SELECTOR +
-    pad32(atlas.contracts.AtlasVault) +
-    bigToHex32(amount);
-  logStatus(`<span class="dim">Approving ${amountInput.value} bUSD…</span>`);
+  const data = ERC20_APPROVE + pad32(atlas.contracts.AtlasVaultV2) + bigToHex32(amount);
+  logStatus(`<span class="dim">Approving ${amountInput.value} bUSD to V2 vault…</span>`);
   const tx = await window.ethereum!.request<string>({
     method: "eth_sendTransaction",
     params: [{ from: account, to: atlas.contracts.bUSD, data }],
@@ -117,21 +112,25 @@ async function approve() {
 async function deposit() {
   if (!account || !atlas) return;
   const amount = BigInt(Math.floor(Number(amountInput.value) * 1_000_000));
-  const data = VAULT_DEPOSIT_SELECTOR + bigToHex32(amount);
-  logStatus(`<span class="dim">Depositing ${amountInput.value} bUSD into Atlas…</span>`);
+  // deposit(uint256 assets, address receiver) — two-arg ERC-4626 path
+  const data =
+    VAULT_DEPOSIT_TWO_ARG + bigToHex32(amount) + pad32(account);
+  logStatus(`<span class="dim">Depositing ${amountInput.value} bUSD into Atlas V2…</span>`);
   const tx = await window.ethereum!.request<string>({
     method: "eth_sendTransaction",
-    params: [{ from: account, to: atlas.contracts.AtlasVault, data }],
+    params: [{ from: account, to: atlas.contracts.AtlasVaultV2, data }],
   });
   logStatus(
-    `<div class="rec">Deposit sent</div><div style="margin-top:8px"><a href="https://www.oklink.com/xlayer-test/tx/${tx}" target="_blank">${tx?.slice(0, 14)}…</a></div><div style="margin-top:8px;color:var(--muted);font-size:13px">Your ATLS shares mint when the tx confirms. Watch the leaderboard at <a href="/">/</a>.</div>`
+    `<div class="rec">Deposit sent</div><div style="margin-top:8px"><a href="https://www.oklink.com/xlayer-test/tx/${tx}" target="_blank">${tx?.slice(0, 14)}…</a></div><div style="margin-top:8px;color:var(--muted);font-size:13px">ATLS shares mint on confirmation. Withdraw semantics: idle-liquidity only — use the WithdrawQueue for larger redemptions.</div>`
   );
 }
 
 async function main() {
   atlas = await loadAtlas();
-  busdLink.href = `https://www.oklink.com/xlayer-test/address/${atlas.contracts.bUSD}`;
-  busdLink.textContent = `${atlas.contracts.bUSD.slice(0, 10)}…${atlas.contracts.bUSD.slice(-6)}`;
+  if (atlas.contracts.bUSD) {
+    busdLink.href = `https://www.oklink.com/xlayer-test/address/${atlas.contracts.bUSD}`;
+    busdLink.textContent = `${atlas.contracts.bUSD.slice(0, 10)}…${atlas.contracts.bUSD.slice(-6)}`;
+  }
 }
 
 connectBtn.addEventListener("click", connect);

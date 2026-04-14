@@ -1,61 +1,54 @@
 /**
- * Atlas dashboard client. Reads a /atlas.json registry produced server-side
- * (built from the on-chain SignalRegistry + AgentRegistry + AtlasVault).
- * Renders the vault metrics, the agent leaderboard, and the contract addresses.
+ * Atlas V2 dashboard client. Reads /atlas.json produced by
+ * build-atlasV2-registry-vps.mjs. Renders vault TVL, strategy leaderboard
+ * (debt / equity / PnL), and the CascadeLedger-backed signed-receipt feed.
  */
 
-interface AgentEntry {
-  id: string;
-  address: string;
-  name: string;
-  strategy: string;
-  startingCapital: string;
-  equity: string;
-  pnlAbs: string;
-  pnlPct: number;
-  tradeCount: number;
-  signalCount: number;
-  cascadeSpend: string;
+interface UpstreamEvent {
+  index: number;
+  slug: string;
+  author: string;
+  amount: string;
+  settlementTx: string;
+  txHash: string;
 }
 
 interface CascadeEvent {
+  receiptId: string;
+  composite: string;
+  buyer: string;
+  buyerAmount: string;
+  settlementToken: string;
+  buyerSettlementTx: string;
+  timestamp: string;
   block: number;
-  agent: string;
-  signalSlug: string;
-  cost: string;
-  settlementTx: string;
-  txHash: string;
-  cascade: Array<{ txHash: string; authorizer: string; nonce: string; block: number }>;
+  anchorTx: string;
+  upstreams: UpstreamEvent[];
 }
 
-interface RecentTrade {
-  block: number;
-  agent: string;
-  side: "BUY" | "SELL";
-  amountIn: string;
-  amountOut: string;
-  txHash: string;
+interface StrategyEntry {
+  address: string;
+  name: string;
+  strategy: string;
+  subWallet: string;
+  debtLimit: string;
+  currentDebt: string;
+  equity: string;
+  pnlAbs: string;
+  pnlPct: number;
+  cumulativeProfit: string;
+  cumulativeLoss: string;
 }
 
 interface AtlasState {
+  version: "v2";
   chain: { id: number; name: string; explorer: string };
-  contracts: {
-    AtlasVault: string;
-    AgentRegistry: string;
-    DemoAMM: string;
-    MockX: string;
-    bUSD: string;
-  };
-  vault: {
-    tvl: string;
-    totalSupply: string;
-    pricePerShare: string;
-  };
-  amm: { spotXInBUSD: string };
-  agents: AgentEntry[];
-  totals: { trades: number; signals: number; cascadeSpend: string };
-  cascade?: CascadeEvent[];
-  recentTrades?: RecentTrade[];
+  contracts: Record<string, string>;
+  vault: { tvl: string; totalSupply: string; pricePerShare: string; paused: boolean; guardian: string };
+  amm: { spotXInBUSD: string; twap30m: string };
+  strategies: StrategyEntry[];
+  totals: { strategies: number; cascadeEvents: number; totalUpstreamPayments: number };
+  cascade: CascadeEvent[];
   updatedAt: string;
 }
 
@@ -63,9 +56,9 @@ const ATLAS_URL = import.meta.env.VITE_ATLAS_URL ?? "/atlas.json";
 
 async function load(): Promise<AtlasState> {
   try {
-    const res = await fetch(ATLAS_URL);
-    if (!res.ok) throw new Error(`atlas ${res.status}`);
-    return (await res.json()) as AtlasState;
+    const r = await fetch(ATLAS_URL);
+    if (!r.ok) throw new Error(`atlas ${r.status}`);
+    return (await r.json()) as AtlasState;
   } catch {
     return fallback();
   }
@@ -73,109 +66,16 @@ async function load(): Promise<AtlasState> {
 
 function fallback(): AtlasState {
   return {
+    version: "v2",
     chain: { id: 1952, name: "X Layer Testnet", explorer: "https://www.oklink.com/xlayer-test" },
-    contracts: {
-      AtlasVault: "0x113b660d9F53015cc3478f595835554A5DB7dff2",
-      AgentRegistry: "0x2F41E56C09BB117dD8F1E3B648ADA403e460c454",
-      DemoAMM: "0x54F90b6D39284806639Bf376C28FA07d3547Cd76",
-      MockX: "0x320830a9094e955EdD366802127f4F056CF4B08B",
-      bUSD: "0xe5A5A31145dc44EB3BD701897cd825b2443A6B76",
-    },
-    vault: { tvl: "0", totalSupply: "0", pricePerShare: "1000000" },
-    amm: { spotXInBUSD: "1000000000000000000" },
-    agents: [],
-    totals: { trades: 0, signals: 0, cascadeSpend: "0" },
+    contracts: {},
+    vault: { tvl: "0", totalSupply: "0", pricePerShare: "1000000", paused: false, guardian: "" },
+    amm: { spotXInBUSD: "1000000000000000000", twap30m: "1000000000000000000" },
+    strategies: [],
+    totals: { strategies: 0, cascadeEvents: 0, totalUpstreamPayments: 0 },
     cascade: [],
     updatedAt: new Date().toISOString(),
   };
-}
-
-function timeAgo(blocksAgo: number): string {
-  const seconds = blocksAgo * 2; // ~2s per block on X Layer
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3600)}h ago`;
-}
-
-const UPSTREAM_LABELS = ["wallet-risk", "liquidity-depth", "yield-score"];
-
-function renderCascade(s: AtlasState) {
-  const feed = document.getElementById("cascade-feed");
-  if (!feed) return;
-  if (!s.cascade || s.cascade.length === 0) {
-    feed.innerHTML = `<div class="cascade-empty">No cascade events yet. Skeptic queries Beacon when price moves > 25 bps.</div>`;
-    return;
-  }
-  // Prioritize events with full cascade data (showing all 4 settlements) so
-  // judges scrolling the feed see the fan-out structure first. Within each
-  // group keep newest-first.
-  const withCascade = s.cascade.filter((c) => (c.cascade?.length ?? 0) > 0);
-  const withoutCascade = s.cascade.filter((c) => (c.cascade?.length ?? 0) === 0);
-  withCascade.sort((a, b) => b.block - a.block);
-  withoutCascade.sort((a, b) => b.block - a.block);
-  const sorted = [...withCascade, ...withoutCascade];
-  const headBlock = sorted[0]!.block;
-  feed.innerHTML = sorted
-    .slice(0, 8)
-    .map((c) => {
-      const cost = (Number(c.cost) / 1_000_000).toFixed(4);
-      const blocksAgo = headBlock - c.block;
-      const cascadeRows = (c.cascade ?? [])
-        .slice(0, 3)
-        .map((up, i) => {
-          const upstream = UPSTREAM_LABELS[i] ?? "upstream";
-          return `
-            <a class="cascade-sub" href="${s.chain.explorer}/tx/${up.txHash}" target="_blank" rel="noopener">
-              <span class="cascade-sub-arrow">└→</span>
-              <span class="cascade-sub-label">safe-yield → ${upstream}</span>
-              <span class="cascade-sub-tx">${up.txHash.slice(0, 10)}…${up.txHash.slice(-6)}</span>
-            </a>`;
-        })
-        .join("");
-      return `
-        <div class="cascade-block">
-          <a class="cascade-row" href="${s.chain.explorer}/tx/${c.settlementTx}" target="_blank" rel="noopener">
-            <span class="cascade-time">${timeAgo(blocksAgo)}</span>
-            <span class="cascade-agent">${c.agent}</span>
-            <span class="cascade-arrow">→</span>
-            <span class="cascade-slug">${c.signalSlug}</span>
-            <span class="cascade-cost">${cost} bUSD</span>
-            <span class="cascade-tx">${c.settlementTx.slice(0, 10)}…${c.settlementTx.slice(-6)}</span>
-          </a>
-          ${cascadeRows ? `<div class="cascade-children">${cascadeRows}</div>` : ""}
-        </div>`;
-    })
-    .join("");
-}
-
-function renderRecentTrades(s: AtlasState) {
-  const feed = document.getElementById("trades-feed");
-  if (!feed) return;
-  if (!s.recentTrades || s.recentTrades.length === 0) {
-    feed.innerHTML = `<div class="cascade-empty">No trades yet — agents are warming up.</div>`;
-    return;
-  }
-  const sorted = s.recentTrades.slice().sort((a, b) => b.block - a.block);
-  const headBlock = sorted[0]!.block;
-  feed.innerHTML = sorted
-    .slice(0, 12)
-    .map((t) => {
-      const blocksAgo = headBlock - t.block;
-      const amtIn = (Number(t.amountIn) / 1_000_000).toFixed(2);
-      const amtOut = (Number(t.amountOut) / 1_000_000).toFixed(2);
-      const tokenIn = t.side === "BUY" ? "bUSD" : "MOCKX";
-      const tokenOut = t.side === "BUY" ? "MOCKX" : "bUSD";
-      const sideClass = t.side === "BUY" ? "pos" : "neg";
-      return `
-        <a class="cascade-row" href="${s.chain.explorer}/tx/${t.txHash}" target="_blank" rel="noopener">
-          <span class="cascade-time">${timeAgo(blocksAgo)}</span>
-          <span class="cascade-agent">${t.agent}</span>
-          <span class="cascade-side ${sideClass}">${t.side}</span>
-          <span class="cascade-slug">${amtIn} ${tokenIn} → ${amtOut} ${tokenOut}</span>
-          <span class="cascade-tx">${t.txHash.slice(0, 10)}…${t.txHash.slice(-6)}</span>
-        </a>`;
-    })
-    .join("");
 }
 
 function fmtUSD(baseUnits: string): string {
@@ -185,8 +85,7 @@ function fmtUSD(baseUnits: string): string {
 }
 
 function fmtNAV(baseUnits: string): string {
-  const n = Number(BigInt(baseUnits)) / 1_000_000;
-  return n.toFixed(4);
+  return (Number(BigInt(baseUnits)) / 1_000_000).toFixed(4);
 }
 
 function fmtPct(pct: number): string {
@@ -194,23 +93,32 @@ function fmtPct(pct: number): string {
   return `${sign}${pct.toFixed(2)}%`;
 }
 
-function renderMetrics(s: AtlasState) {
-  document.querySelector<HTMLElement>('[data-metric="tvl"]')!.textContent = fmtUSD(s.vault.tvl);
-  document.querySelector<HTMLElement>('[data-metric="nav"]')!.textContent = fmtNAV(s.vault.pricePerShare);
-  document.querySelector<HTMLElement>('[data-metric="trades"]')!.textContent =
-    s.totals.trades.toLocaleString();
-  document.querySelector<HTMLElement>('[data-metric="cascade"]')!.textContent =
-    `${fmtUSD(s.totals.cascadeSpend)} bUSD`;
+function timeAgo(blocksAgo: number): string {
+  const seconds = blocksAgo * 2;
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
 }
 
-function renderAgents(s: AtlasState) {
-  const grid = document.getElementById("agents-grid")!;
-  if (s.agents.length === 0) {
-    grid.innerHTML = '<div class="agent-card placeholder">No agents registered yet.</div>';
+function renderMetrics(s: AtlasState) {
+  const tvlEl = document.querySelector<HTMLElement>('[data-metric="tvl"]');
+  const navEl = document.querySelector<HTMLElement>('[data-metric="nav"]');
+  const tradesEl = document.querySelector<HTMLElement>('[data-metric="trades"]');
+  const cascadeEl = document.querySelector<HTMLElement>('[data-metric="cascade"]');
+  if (tvlEl) tvlEl.textContent = fmtUSD(s.vault.tvl);
+  if (navEl) navEl.textContent = fmtNAV(s.vault.pricePerShare);
+  if (tradesEl) tradesEl.textContent = s.totals.cascadeEvents.toString();
+  if (cascadeEl) cascadeEl.textContent = s.totals.totalUpstreamPayments.toString();
+}
+
+function renderStrategies(s: AtlasState) {
+  const grid = document.getElementById("agents-grid");
+  if (!grid) return;
+  if (s.strategies.length === 0) {
+    grid.innerHTML = '<div class="agent-card placeholder">No strategies registered yet.</div>';
     return;
   }
-  // Sort by PnL descending
-  const sorted = s.agents.slice().sort((a, b) => b.pnlPct - a.pnlPct);
+  const sorted = s.strategies.slice().sort((a, b) => b.pnlPct - a.pnlPct);
   grid.innerHTML = sorted
     .map((a, i) => {
       const pnlClass = a.pnlPct >= 0 ? "pos" : "neg";
@@ -222,20 +130,74 @@ function renderAgents(s: AtlasState) {
         <div class="agent-pnl ${pnlClass}">${fmtPct(a.pnlPct)}</div>
         <div class="agent-stats">
           <div><span>Equity</span><b>${fmtUSD(a.equity)}</b></div>
-          <div><span>Trades</span><b>${a.tradeCount}</b></div>
-          <div><span>Signals</span><b>${a.signalCount}</b></div>
-          <div><span>Cascade spend</span><b>${fmtUSD(a.cascadeSpend)}</b></div>
+          <div><span>Debt</span><b>${fmtUSD(a.currentDebt)}</b></div>
+          <div><span>Cum. profit</span><b>${fmtUSD(a.cumulativeProfit)}</b></div>
+          <div><span>Cum. loss</span><b>${fmtUSD(a.cumulativeLoss)}</b></div>
         </div>
-        <a class="agent-link" href="${s.chain.explorer}/address/${a.address}" target="_blank" rel="noopener">view on OKLink →</a>
+        <a class="agent-link" href="${s.chain.explorer}/address/${a.address}" target="_blank" rel="noopener">strategy →</a>
+        <a class="agent-link" href="${s.chain.explorer}/address/${a.subWallet}" target="_blank" rel="noopener">sub-wallet →</a>
       </div>`;
     })
     .join("");
 }
 
+function renderCascade(s: AtlasState) {
+  const feed = document.getElementById("cascade-feed");
+  if (!feed) return;
+  if (s.cascade.length === 0) {
+    feed.innerHTML = `<div class="cascade-empty">No signed cascade receipts anchored yet. Skeptic anchors receipts to CascadeLedger after each paid signal.</div>`;
+    return;
+  }
+  const sorted = s.cascade.slice().sort((a, b) => b.block - a.block);
+  const headBlock = sorted[0]!.block;
+  feed.innerHTML = sorted
+    .slice(0, 8)
+    .map((c) => {
+      const cost = (Number(c.buyerAmount) / 1_000_000).toFixed(4);
+      const blocksAgo = headBlock - c.block;
+      const children = c.upstreams
+        .map(
+          (u) => `
+        <a class="cascade-sub" href="${s.chain.explorer}/tx/${u.settlementTx}" target="_blank" rel="noopener">
+          <span class="cascade-sub-arrow">└→</span>
+          <span class="cascade-sub-label">composite → ${u.slug}</span>
+          <span class="cascade-sub-tx">${u.settlementTx.slice(0, 10)}…${u.settlementTx.slice(-6)}</span>
+        </a>`
+        )
+        .join("");
+      return `
+        <div class="cascade-block">
+          <a class="cascade-row" href="${s.chain.explorer}/tx/${c.buyerSettlementTx}" target="_blank" rel="noopener">
+            <span class="cascade-time">${timeAgo(blocksAgo)}</span>
+            <span class="cascade-agent">buyer</span>
+            <span class="cascade-arrow">→</span>
+            <span class="cascade-slug">safe-yield composite</span>
+            <span class="cascade-cost">${cost} bUSD</span>
+            <span class="cascade-tx">${c.buyerSettlementTx.slice(0, 10)}…${c.buyerSettlementTx.slice(-6)}</span>
+          </a>
+          ${children ? `<div class="cascade-children">${children}</div>` : ""}
+        </div>`;
+    })
+    .join("");
+}
+
 function renderContracts(s: AtlasState) {
-  for (const [name, addr] of Object.entries(s.contracts)) {
-    const el = document.querySelector<HTMLAnchorElement>(`[data-contract="${name}"]`);
+  const pairs: Array<[string, string]> = [
+    ["AtlasVaultV2", "AtlasVaultV2"],
+    ["TwapOracle", "TwapOracle"],
+    ["CascadeLedger", "CascadeLedger"],
+    ["SlashingRegistry", "SlashingRegistry"],
+    ["Fear", "Fear"],
+    ["Greed", "Greed"],
+    ["Skeptic", "Skeptic"],
+    ["DemoAMM", "DemoAMM"],
+    ["bUSD", "bUSD"],
+  ];
+  for (const [slot, key] of pairs) {
+    const el = document.querySelector<HTMLAnchorElement>(`[data-contract="${slot}"]`);
     if (!el) continue;
+    const addr = s.contracts[key];
+    if (!addr) continue;
     el.textContent = `${addr.slice(0, 8)}…${addr.slice(-6)}`;
     el.href = `${s.chain.explorer}/address/${addr}`;
   }
@@ -244,9 +206,8 @@ function renderContracts(s: AtlasState) {
 async function main() {
   const s = await load();
   renderMetrics(s);
-  renderAgents(s);
+  renderStrategies(s);
   renderCascade(s);
-  renderRecentTrades(s);
   renderContracts(s);
   setTimeout(main, 30_000);
 }

@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/beacon
-ExecStart=/usr/bin/node /opt/beacon/scripts/build-atlas-registry-vps.mjs
+ExecStart=/usr/bin/node /opt/beacon/scripts/build-atlasV2-registry-vps.mjs
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=atlas-registry-refresh

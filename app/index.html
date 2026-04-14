@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Atlas — AI Strategy Vault on X Layer (V2)</title>
-    <meta name="description" content="Multi-strategy vault with real custody on X Layer. ERC-4626 shares track live NAV from vault-controlled sub-wallets — not external EOAs. Every signal consumed is paid via signed x402 cascade receipts." />
-    <meta property="og:title" content="Atlas — AI Strategy Vault on X Layer (V2)" />
-    <meta property="og:description" content="Real custody. Real P&L from balance snapshots. Signed cascade receipts. Auditable agent arena." />
+    <title>Atlas V2 · Beacon — AI Strategy Vault with Signed Cascade Receipts on X Layer</title>
+    <meta name="description" content="Vault-custody AI strategy arena on X Layer. Skeptic pays the Beacon signal layer per trade; every cascade is an EIP-712 signed receipt anchored to CascadeLedger. Powered by @beacon/sdk." />
+    <meta property="og:title" content="Atlas V2 · Beacon — Signed Cascade Receipts on X Layer" />
+    <meta property="og:description" content="Vault-custody AI strategy arena. Paid intelligence. Signed receipts. Anchored on-chain." />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -23,17 +23,19 @@
 
     <main>
       <section class="hero">
-        <h1>AI strategy vault on X Layer.</h1>
+        <h1>AI strategy vault + signed cascade receipts.</h1>
         <p class="lead">
-          Multi-strategy vault with <b>real custody</b>: sub-wallets owned by on-chain strategy
-          contracts, vault-controlled capital flow, P&amp;L derived from balance snapshots.
-          Every composite signal response is a cryptographic <span class="mono">CascadeReceipt</span>
-          the composite has signed — no heuristic matching, no self-reported numbers.
+          Two primitives that fit together. <b>@beacon/sdk</b> turns any HTTP endpoint into an
+          x402-priced signal and every composite response carries an EIP-712 signed
+          <span class="mono">CascadeReceipt</span>. <b>Atlas V2</b> is the vault-custody arena
+          where three strategies compete — Skeptic pays the signal layer before each trade,
+          every cascade is anchored on-chain via <span class="mono">CascadeLedger</span>. No
+          self-reported P&amp;L. No heuristic matching. No external-wallet NAV inflation.
         </p>
         <div class="hero-ctas">
-          <a class="btn primary" href="/deposit.html">Deposit bUSD (V2)</a>
-          <a class="btn" href="#leaderboard">Watch the agents</a>
-          <a class="btn" href="#v2">V2 Architecture</a>
+          <a class="btn primary" href="/deposit.html">Deposit bUSD</a>
+          <a class="btn" href="#leaderboard">Watch the strategies</a>
+          <a class="btn" href="#v2">Architecture</a>
           <a class="btn ghost" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
         </div>
       </section>
@@ -87,42 +89,36 @@
           <span class="metric-value" data-metric="nav">—</span>
         </div>
         <div class="metric">
-          <span class="metric-label">Total trades</span>
+          <span class="metric-label">Signed cascade receipts</span>
           <span class="metric-value" data-metric="trades">—</span>
         </div>
         <div class="metric">
-          <span class="metric-label">Signal cascade spend</span>
+          <span class="metric-label">Upstream payments anchored</span>
           <span class="metric-value" data-metric="cascade">—</span>
         </div>
       </section>
 
       <section id="leaderboard">
-        <h2>Live agent leaderboard</h2>
-        <p class="section-sub">Each agent runs a different strategy. PnL = trades − signal costs. Updates every tick.</p>
+        <h2>Strategy leaderboard</h2>
+        <p class="section-sub">
+          Three strategies under vault custody. Equity is valued at the 30-minute TWAP; P&amp;L
+          derives from balance snapshots vs cumulative debt — no agent-supplied numbers.
+        </p>
         <div id="agents-grid" class="agents-grid">
-          <div class="agent-card placeholder">Loading agents…</div>
+          <div class="agent-card placeholder">Loading strategies…</div>
         </div>
       </section>
 
       <section id="cascade">
-        <h2>Live cascade feed</h2>
+        <h2>Signed cascade receipts</h2>
         <p class="section-sub">
-          Every signal Skeptic buys triggers four x402 settlements on X Layer: one buyer→composite
-          plus three composite→upstream. Click any row to see the tx on OKLink.
+          Each row is an <b>EIP-712 signed CascadeReceipt</b> anchored to the on-chain
+          <span class="mono">CascadeLedger</span> — composite → N upstream settlements,
+          cryptographically proven, indexable via The Graph. Click to inspect the underlying
+          x402 payments on OKLink.
         </p>
         <div id="cascade-feed" class="cascade-feed">
-          <div class="cascade-empty">No cascade events yet. Skeptic queries Beacon when price moves &gt; 25 bps.</div>
-        </div>
-      </section>
-
-      <section id="trades">
-        <h2>Recent trades</h2>
-        <p class="section-sub">
-          Last on-chain swaps on DemoAMM. Each trade emits an <span class="mono">AgentTraded</span>
-          event on AgentRegistry — the leaderboard is built from these.
-        </p>
-        <div id="trades-feed" class="cascade-feed">
-          <div class="cascade-empty">Loading trades…</div>
+          <div class="cascade-empty">No signed receipts anchored yet. Skeptic anchors receipts after every paid signal purchase.</div>
         </div>
       </section>
 
