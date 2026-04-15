@@ -103,13 +103,13 @@
       <!-- ============================ TABBED DASHBOARD ============================ -->
       <section id="tabs">
         <div class="tabs" role="tablist">
-          <button class="tab active" data-tab="strategies" role="tab">Strategies <span class="tab-count" id="tab-count-strategies">3</span></button>
-          <button class="tab" data-tab="cascades" role="tab">Cascades <span class="tab-count" id="tab-count-cascades">0</span></button>
-          <button class="tab" data-tab="vault" role="tab">Vault</button>
+          <button class="tab active" data-tab="vault" role="tab">Vault</button>
+          <button class="tab" data-tab="strategies" role="tab">Strategies <span class="tab-count" id="tab-count-strategies">3</span></button>
+          <button class="tab" data-tab="cascades" role="tab">Receipts <span class="tab-count" id="tab-count-cascades">0</span></button>
           <button class="tab" data-tab="contracts" role="tab">Contracts</button>
         </div>
 
-        <div class="tab-panel active" data-panel="strategies">
+        <div class="tab-panel" data-panel="strategies">
           <div class="section-head">
             <div>
               <div class="section-title">Strategy leaderboard</div>
@@ -127,8 +127,8 @@
         <div class="tab-panel" data-panel="cascades">
           <div class="section-head">
             <div>
-              <div class="section-title">Signed cascade receipts</div>
-              <p class="section-sub">Each row is an EIP-712 signed CascadeReceipt anchored on-chain via <span class="mono">CascadeLedger</span>. Click to expand. Sort by clicking columns.</p>
+              <div class="section-title">On-chain receipts</div>
+              <p class="section-sub">Every row is an EIP-712 signed receipt Skeptic anchored on <span class="mono">CascadeLedger</span> after paying for the <span class="mono">safe-yield</span> signal. Click to expand.</p>
             </div>
           </div>
           <div class="cascade-table-wrap">
@@ -164,11 +164,11 @@
           </div>
         </div>
 
-        <div class="tab-panel" data-panel="vault">
+        <div class="tab-panel active" data-panel="vault">
           <div class="section-head">
             <div>
-              <div class="section-title">AtlasVaultV2</div>
-              <p class="section-sub">ERC-4626 multi-strategy vault with TWAP-priced NAV.</p>
+              <div class="section-title">Vault overview</div>
+              <p class="section-sub">ERC-4626 multi-strategy vault on X Layer. NAV priced by a 30-min TWAP. Guardian-pausable.</p>
             </div>
           </div>
           <div class="chart-card">
