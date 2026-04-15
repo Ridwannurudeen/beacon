@@ -15,7 +15,7 @@ export interface WalletState {
 }
 
 export function isCorrectChain(s: WalletState): boolean {
-  return s.chainId === X_LAYER_TESTNET_HEX;
+  return (s.chainId ?? "").toLowerCase() === X_LAYER_TESTNET_HEX;
 }
 
 interface EthRequestArguments {
@@ -58,7 +58,7 @@ function setAddress(addr: string | null) {
 }
 
 function setChain(chainId: string | null) {
-  current = { ...current, chainId };
+  current = { ...current, chainId: chainId ? chainId.toLowerCase() : null };
   emit();
 }
 
@@ -69,6 +69,21 @@ async function readChain() {
     const id = (await eth.request<string>({ method: "eth_chainId" })) ?? null;
     setChain(id);
   } catch { /* ignore */ }
+}
+
+async function pollForChain(targetHex: string, timeoutMs = 3000): Promise<boolean> {
+  const eth = getProvider();
+  if (!eth) return false;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const id = (await eth.request<string>({ method: "eth_chainId" })) ?? "";
+      setChain(id);
+      if (id.toLowerCase() === targetHex) return true;
+    } catch { /* ignore */ }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return false;
 }
 
 export function getProvider(): EthereumProvider | null {
@@ -100,6 +115,14 @@ export function disconnectWallet() {
   setAddress(null);
 }
 
+const X_LAYER_ADD_PARAMS = {
+  chainId: X_LAYER_TESTNET_HEX,
+  chainName: "X Layer Testnet",
+  nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+  rpcUrls: ["https://testrpc.xlayer.tech"],
+  blockExplorerUrls: ["https://www.oklink.com/xlayer-test"],
+};
+
 export async function ensureChain() {
   const eth = getProvider();
   if (!eth) return;
@@ -110,31 +133,40 @@ export async function ensureChain() {
     });
   } catch (e) {
     const err = e as { code?: number };
-    if (err.code === 4902) {
+    if (err.code === 4902 || err.code === -32603) {
       await eth.request({
         method: "wallet_addEthereumChain",
-        params: [
-          {
-            chainId: X_LAYER_TESTNET_HEX,
-            chainName: "X Layer Testnet",
-            nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
-            rpcUrls: ["https://testrpc.xlayer.tech"],
-            blockExplorerUrls: ["https://www.oklink.com/xlayer-test"],
-          },
-        ],
+        params: [X_LAYER_ADD_PARAMS],
       });
+      try {
+        await eth.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: X_LAYER_TESTNET_HEX }],
+        });
+      } catch { /* some wallets auto-switch after add */ }
     } else {
       throw e;
     }
   }
 }
 
-export async function switchToTestnet(): Promise<boolean> {
+export class SwitchChainError extends Error {
+  code: number | undefined;
+  constructor(msg: string, code?: number) { super(msg); this.code = code; }
+}
+
+export async function switchToTestnet(): Promise<void> {
+  const eth = getProvider();
+  if (!eth) throw new SwitchChainError("No wallet detected");
   try {
     await ensureChain();
-    await readChain();
-    return isCorrectChain(current);
-  } catch { return false; }
+  } catch (e) {
+    const err = e as { code?: number; message?: string };
+    if (err.code === 4001) throw new SwitchChainError("You rejected the chain switch in your wallet.", 4001);
+    throw new SwitchChainError(err.message || "Your wallet refused to switch. Try adding X Layer Testnet manually — see Docs.", err.code);
+  }
+  const ok = await pollForChain(X_LAYER_TESTNET_HEX);
+  if (!ok) throw new SwitchChainError("Switch did not take effect. Confirm X Layer Testnet is selected in your wallet.");
 }
 
 export function shortAddr(a: string): string {
@@ -187,8 +219,12 @@ export function renderWalletChip(slotId: string, opts: { onToast?: (msg: string,
       <button class="wallet-chip-disconnect" data-wallet-disconnect aria-label="Disconnect">×</button>
     </span>`;
   slot.querySelector("[data-wallet-switch]")?.addEventListener("click", async () => {
-    const ok = await switchToTestnet();
-    toast(ok ? "Switched to X Layer Testnet" : "Switch rejected — stay on correct chain to use the app", ok ? "success" : "error");
+    try {
+      await switchToTestnet();
+      toast("Switched to X Layer Testnet", "success");
+    } catch (e) {
+      toast((e as Error).message || "Failed to switch chain", "error");
+    }
   });
   slot.querySelector("[data-wallet-disconnect]")?.addEventListener("click", () => {
     disconnectWallet();
