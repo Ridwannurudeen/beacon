@@ -193,20 +193,20 @@ async function findAndReadPool(
 
   // OKX DEX aggregator quote — "Uniswap AI / Swap" skill. Returns expected
   // out-amount + slippage for a 1-token-unit trade sourced across all X Layer
-  // DEXes (Uniswap v3 is one of the routes). Mainnet only.
+  // DEXes. Mainnet only (V6 API).
   if (okx && CHAIN_ID === 196) {
     try {
-      const dec0 = 18; // amountIn is 1 whole token — safe default
+      const dec0 = 18;
       const q = await okx.getQuote({
         fromToken: tokenA,
         toToken: tokenB,
         amount: (10n ** BigInt(dec0)).toString(),
       });
       out.okxRoute = {
-        estimatedOut: q.toAmount,
+        estimatedOut: q.toTokenAmount,
         slippageBps: q.estimatedSlippageBps,
-        liquiditySources: q.liquiditySources,
-        note: "Priced via OKX DEX aggregator (Onchain OS skill) — best route across all X Layer DEXes.",
+        liquiditySources: q.dexSources.map((d) => `${d.name}:${d.percent}%`),
+        note: "Priced via OKX DEX aggregator V6 (Onchain OS) — best route across X Layer DEXes.",
       };
     } catch (e) {
       out.okxRoute = { estimatedOut: "0", slippageBps: 0, liquiditySources: [], note: `quote err: ${(e as Error).message.slice(0, 60)}` };

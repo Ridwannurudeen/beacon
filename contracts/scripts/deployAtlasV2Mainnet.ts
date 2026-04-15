@@ -11,18 +11,26 @@ import * as path from "path";
  *     Aggregator's router (Onchain OS DEX skill), not DemoAMM
  *   - Uses a user-supplied TwapOracle against a real Uniswap v3 pool
  *
- * Required env vars:
+ * Verified addresses (via live OKX V6 DEX API probe, 2026-04-15):
+ *   USDT on X Layer: 0x779ded0c9e1022225f8e0630b35a9b54be713736 (6 decimals)
+ *   WOKB:            0xe538905cf8410324e03a5a23c1c177a474d59b2b (18 decimals)
+ *   OKX DEX router:  0x8b773D83bc66Be128c60e07E17C8901f7a64F000 (dexTokenApproveAddress)
+ *
+ * Override via env vars if needed:
  *   PRIVATE_KEY                     — deployer EOA (needs ~0.5 OKB for gas)
- *   USDT0_ADDRESS                   — USDT0 contract on X Layer mainnet
- *   VOLATILE_TOKEN                  — address of the "other" token strategies trade (e.g. WOKB)
- *   OKX_DEX_ROUTER                  — OKX DEX Aggregator router on X Layer mainnet
- *   TWAP_ORACLE_ADDRESS (optional)  — if set, reuses an existing oracle; else deploys a stub
+ *   USDT0_ADDRESS (default above)   — settlement token
+ *   VOLATILE_TOKEN (default WOKB)
+ *   OKX_DEX_ROUTER (default above)
+ *   TWAP_ORACLE_ADDRESS (optional)
  *
  * Usage:
- *   PRIVATE_KEY=0x... USDT0_ADDRESS=0x... VOLATILE_TOKEN=0x... OKX_DEX_ROUTER=0x... \
- *     npx hardhat run scripts/deployAtlasV2Mainnet.ts --network xlayer
+ *   PRIVATE_KEY=0x... npx hardhat run scripts/deployAtlasV2Mainnet.ts --network xlayer
  */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const DEFAULT_USDT = "0x779ded0c9e1022225f8e0630b35a9b54be713736";
+const DEFAULT_WOKB = "0xe538905cf8410324e03a5a23c1c177a474d59b2b";
+const DEFAULT_ROUTER = "0x8b773D83bc66Be128c60e07E17C8901f7a64F000";
 
 function requireEnv(k: string): string {
   const v = process.env[k];
@@ -38,9 +46,9 @@ async function main() {
   const dir = path.join(__dirname, "..", "deployments");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  const USDT0 = requireEnv("USDT0_ADDRESS");
-  const OTHER = requireEnv("VOLATILE_TOKEN");
-  const ROUTER = requireEnv("OKX_DEX_ROUTER");
+  const USDT0 = process.env.USDT0_ADDRESS ?? DEFAULT_USDT;
+  const OTHER = process.env.VOLATILE_TOKEN ?? DEFAULT_WOKB;
+  const ROUTER = process.env.OKX_DEX_ROUTER ?? DEFAULT_ROUTER;
   const ORACLE_OVERRIDE = process.env.TWAP_ORACLE_ADDRESS;
 
   const [deployer] = await ethers.getSigners();

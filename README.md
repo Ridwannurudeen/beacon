@@ -108,9 +108,17 @@ beacon/
 
 ## Live V2 deployment (X Layer mainnet, chainId 196)
 
-_Being deployed alongside submission — see `contracts/deployments/xlayerMainnet.atlasV2.json` for canonical addresses once the tx confirms._
+Verified via OKX V6 DEX API probe (`scripts/probeXLayerAddresses.ts` on 2026-04-15):
 
-Uses real **USDT0** for settlement. Shared Onchain OS skill credentials → see env setup below.
+| Asset | Address | Notes |
+|---|---|---|
+| **USDT** (settlement) | `0x779ded0c9e1022225f8e0630b35a9b54be713736` | 6 decimals — Atlas's default settlement token on mainnet |
+| **WOKB** (volatile) | `0xe538905cf8410324e03a5a23c1c177a474d59b2b` | 18 decimals — Fear/Greed/Skeptic trade USDT↔WOKB |
+| **OKX DEX Router** | `0x8b773D83bc66Be128c60e07E17C8901f7a64F000` | `dexTokenApproveAddress` from OKX V6 `supported/chain` |
+
+Atlas V2 contract addresses write to `contracts/deployments/xlayer.atlasV2.json` once the deploy script completes.
+
+Shared Onchain OS skill credentials → see env setup below.
 
 ## Live V2 deployment (X Layer testnet, chainId 1952)
 

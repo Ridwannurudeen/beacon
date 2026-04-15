@@ -1,14 +1,18 @@
 /**
- * @beacon/okx-client — thin wrapper around OKX Onchain OS + Uniswap AI skills
- * for X Layer mainnet (chainId 196). Signs every request with the HMAC-SHA256
- * scheme required by OKX's DEX API.
+ * @beacon/okx-client — thin wrapper around OKX Onchain OS DEX API V6 for
+ * X Layer mainnet (chainId 196, chainIndex 196). All calls are HMAC-SHA256
+ * signed per the OKX API spec.
  *
- * Mirrored from PreflightX's production-hardened client.
+ * V6 quirks (vs the older V5 docs floating around):
+ *   - URL params use `chainIndex`, not `chainId`
+ *   - price-info / candles have different response shapes
+ *   - Wallet endpoints still live on V5 at /api/v5/wallet/... (by-address form)
  */
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 import { createHmac } from "node:crypto";
 
 export const X_LAYER_CHAIN_ID = 196;
+export const X_LAYER_CHAIN_INDEX = "196";
 export const X_LAYER_MAINNET_RPC = "https://rpc.xlayer.tech";
 
 export interface OnchainosClientOptions {
@@ -19,36 +23,54 @@ export interface OnchainosClientOptions {
 }
 
 function signRequest(secretKey: string, timestamp: string, method: string, requestPath: string, body: string): string {
-  const preHash = timestamp + method.toUpperCase() + requestPath + body;
-  return createHmac("sha256", secretKey).update(preHash).digest("base64");
+  const pre = timestamp + method.toUpperCase() + requestPath + body;
+  return createHmac("sha256", secretKey).update(pre).digest("base64");
 }
 
+export interface SupportedChain {
+  chainId: number;
+  chainIndex: number;
+  chainName: string;
+  dexTokenApproveAddress: string;
+}
+export interface TokenMeta {
+  tokenSymbol: string;
+  tokenContractAddress: string;
+  decimals: string;
+  tokenName?: string;
+  tokenLogoUrl?: string;
+}
 export interface QuoteResult {
-  fromAmount: string;
-  toAmount: string;
+  chainIndex: string;
+  fromTokenAmount: string;
+  toTokenAmount: string;
+  router: string;
   estimatedSlippageBps: number;
-  routerAddress: string;
-  callData: string;
-  value: string;
-  liquiditySources: string[];
+  dexSources: Array<{ name: string; percent: string }>;
+  fromToken?: { tokenSymbol: string; tokenUnitPrice: string; tokenContractAddress: string };
+  toToken?: { tokenSymbol: string; tokenUnitPrice: string; tokenContractAddress: string };
   quotedAt: number;
 }
-export interface TokenInfo {
-  address: string;
-  symbol: string;
-  decimals: number;
-  createdAt?: number;
-  verified?: boolean;
-  topHolderConcentrationPct?: number;
+export interface PriceInfo {
+  price: number;
+  marketCap: number;
+  liquidity: number;
+  priceChange24h: number;
+  priceChange1h: number;
+  updatedAt: number;
+}
+export interface Candle {
+  ts: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volumeCoin: number;
+  volumeUsd: number;
 }
 export interface PortfolioSnapshot {
   totalValueUsd: number;
-  balances: Array<{ token: string; amountBaseUnits: string; valueUsd: number }>;
-}
-export interface SimResult {
-  success: boolean;
-  gasUsed: string;
-  revertReason?: string;
+  balances: Array<{ token: string; symbol: string; amountBaseUnits: string; valueUsd: number }>;
 }
 
 export class OnchainosClient {
@@ -56,7 +78,7 @@ export class OnchainosClient {
 
   constructor(opts: OnchainosClientOptions) {
     const baseURL = opts.baseUrl ?? "https://web3.okx.com";
-    this.http = axios.create({ baseURL, timeout: 12_000 });
+    this.http = axios.create({ baseURL, timeout: 15_000 });
     this.http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
       const timestamp = new Date().toISOString();
       const method = (config.method ?? "get").toUpperCase();
@@ -66,9 +88,9 @@ export class OnchainosClient {
       }
       const requestPath = url.pathname + (url.search || "");
       const body = config.data ? JSON.stringify(config.data) : "";
-      const sign = signRequest(opts.secretKey, timestamp, method, requestPath, body);
+      const sig = signRequest(opts.secretKey, timestamp, method, requestPath, body);
       config.headers.set("OK-ACCESS-KEY", opts.apiKey);
-      config.headers.set("OK-ACCESS-SIGN", sign);
+      config.headers.set("OK-ACCESS-SIGN", sig);
       config.headers.set("OK-ACCESS-TIMESTAMP", timestamp);
       config.headers.set("OK-ACCESS-PASSPHRASE", opts.passphrase);
       config.headers.set("Content-Type", "application/json");
@@ -76,106 +98,117 @@ export class OnchainosClient {
     });
   }
 
-  /** OKX DEX aggregator quote — "Swap" skill. */
-  async getQuote(p: { fromToken: string; toToken: string; amount: string }): Promise<QuoteResult> {
-    const { data } = await this.http.get("/api/v5/dex/aggregator/quote", {
-      params: { chainId: X_LAYER_CHAIN_ID, fromTokenAddress: p.fromToken, toTokenAddress: p.toToken, amount: p.amount },
+  /** V6 supported chains — returns every chain OKX aggregator serves. */
+  async getSupportedChains(): Promise<SupportedChain[]> {
+    const { data } = await this.http.get("/api/v6/dex/aggregator/supported/chain");
+    if (data?.code !== "0" && data?.code !== 0) throw new Error(`OKX supported/chain: ${data?.msg}`);
+    return data.data as SupportedChain[];
+  }
+
+  /** V6 all tokens on a chain. Returns e.g. USDT/USDC/OKB/WOKB for X Layer. */
+  async getTokens(chainIndex: string = X_LAYER_CHAIN_INDEX): Promise<TokenMeta[]> {
+    const { data } = await this.http.get("/api/v6/dex/aggregator/all-tokens", {
+      params: { chainIndex },
     });
-    const q = data?.data?.[0];
-    if (!q) throw new Error("OnchainOS quote: empty response");
+    if (data?.code !== "0" && data?.code !== 0) throw new Error(`OKX all-tokens: ${data?.msg}`);
+    return data.data as TokenMeta[];
+  }
+
+  /** V6 DEX aggregator quote — "Swap" skill. */
+  async getQuote(p: {
+    fromToken: string;
+    toToken: string;
+    amount: string;
+    chainIndex?: string;
+  }): Promise<QuoteResult> {
+    const { data } = await this.http.get("/api/v6/dex/aggregator/quote", {
+      params: {
+        chainIndex: p.chainIndex ?? X_LAYER_CHAIN_INDEX,
+        fromTokenAddress: p.fromToken,
+        toTokenAddress: p.toToken,
+        amount: p.amount,
+      },
+    });
+    if (data?.code !== "0" && data?.code !== 0) throw new Error(`OKX quote: ${data?.msg}`);
+    const q = data.data?.[0];
+    if (!q) throw new Error("OKX quote: empty response");
     return {
-      fromAmount: q.fromTokenAmount,
-      toAmount: q.toTokenAmount,
+      chainIndex: q.chainIndex,
+      fromTokenAmount: q.fromTokenAmount,
+      toTokenAmount: q.toTokenAmount,
+      router: q.router,
       estimatedSlippageBps: Number(q.estimatedSlippageBps ?? 0),
-      routerAddress: q.routerAddress ?? q.to,
-      callData: q.data ?? q.callData ?? "0x",
-      value: q.value ?? "0",
-      liquiditySources: q.dexRouterList?.map((d: { dexName: string }) => d.dexName) ?? [],
+      dexSources: (q.dexRouterList ?? []).map((d: { dexProtocol?: { dexName?: string; percent?: string } }) => ({
+        name: d.dexProtocol?.dexName ?? "",
+        percent: d.dexProtocol?.percent ?? "0",
+      })),
+      fromToken: q.fromToken,
+      toToken: q.toToken,
       quotedAt: Date.now(),
     };
   }
 
-  /** Market Data skill — token info + holder concentration. */
-  async getTokenInfo(tokenAddress: string): Promise<TokenInfo> {
-    const { data } = await this.http.get("/api/v5/dex/market/token-info", {
-      params: { chainId: X_LAYER_CHAIN_ID, tokenAddress },
-    });
-    const t = data?.data?.[0];
-    if (!t) throw new Error(`OnchainOS token-info: not found ${tokenAddress}`);
+  /** V6 market price-info (POST with array body). */
+  async getPriceInfo(tokenAddress: string, chainIndex: string = X_LAYER_CHAIN_INDEX): Promise<PriceInfo> {
+    const { data } = await this.http.post("/api/v6/dex/market/price-info", [
+      { chainIndex, tokenContractAddress: tokenAddress },
+    ]);
+    if (data?.code !== "0" && data?.code !== 0) throw new Error(`OKX price-info: ${data?.msg}`);
+    const p = data.data?.[0];
+    if (!p) throw new Error(`OKX price-info: not found ${tokenAddress}`);
     return {
-      address: tokenAddress,
-      symbol: t.symbol,
-      decimals: Number(t.decimals),
-      createdAt: t.createdAt ? Number(t.createdAt) : undefined,
-      verified: Boolean(t.verified),
-      topHolderConcentrationPct: t.topHolderConcentrationPct ? Number(t.topHolderConcentrationPct) : undefined,
+      price: Number(p.price),
+      marketCap: Number(p.marketCap ?? 0),
+      liquidity: Number(p.liquidity ?? 0),
+      priceChange24h: Number(p.priceChange24H ?? 0),
+      priceChange1h: Number(p.priceChange1H ?? 0),
+      updatedAt: Number(p.time ?? Date.now()),
     };
   }
 
-  /** Market Data skill — USD spot price. */
-  async getMarketPriceUsd(tokenAddress: string): Promise<{ price: number; updatedAt: number }> {
-    const { data } = await this.http.get("/api/v5/dex/market/price", {
-      params: { chainId: X_LAYER_CHAIN_ID, tokenAddress },
-    });
-    const p = data?.data?.[0];
-    if (!p) throw new Error(`OnchainOS price: not found ${tokenAddress}`);
-    return { price: Number(p.price), updatedAt: Number(p.timestamp ?? Date.now()) };
-  }
-
-  /** Market Data skill — OHLC candles. */
-  async getRecentCandles(
+  /** V6 candles — GET, array-format response [ts, o, h, l, c, volCoin, volUsd, confirm]. */
+  async getCandles(
     tokenAddress: string,
-    bar: "1m" | "5m" | "15m" | "1H" = "15m",
+    bar: "1m" | "5m" | "15m" | "1H" | "4H" | "1D" = "1H",
     limit = 4,
-  ): Promise<Array<{ open: number; close: number; ts: number }>> {
-    const { data } = await this.http.get("/api/v5/dex/market/candles", {
-      params: { chainId: X_LAYER_CHAIN_ID, tokenAddress, bar, limit },
+    chainIndex: string = X_LAYER_CHAIN_INDEX,
+  ): Promise<Candle[]> {
+    const { data } = await this.http.get("/api/v6/dex/market/candles", {
+      params: { chainIndex, tokenContractAddress: tokenAddress, bar, limit: String(limit) },
     });
-    const rows = data?.data ?? [];
-    return rows.map((r: { ts?: string; o?: string; c?: string } | string[]) => {
-      if (Array.isArray(r)) return { ts: Number(r[0]), open: Number(r[1]), close: Number(r[4]) };
-      return { ts: Number(r.ts), open: Number(r.o), close: Number(r.c) };
-    });
+    if (data?.code !== "0" && data?.code !== 0) throw new Error(`OKX candles: ${data?.msg}`);
+    return (data.data ?? []).map((r: string[]) => ({
+      ts: Number(r[0]),
+      open: Number(r[1]),
+      high: Number(r[2]),
+      low: Number(r[3]),
+      close: Number(r[4]),
+      volumeCoin: Number(r[5]),
+      volumeUsd: Number(r[6]),
+    }));
   }
 
-  /** Onchain Gateway skill — tx simulation. */
-  async simulateTx(p: { from: string; to: string; data: string; value: string }): Promise<SimResult> {
-    const { data } = await this.http.post("/api/v5/dex/aggregator/onchain-gateway/simulate-tx", {
-      chainId: X_LAYER_CHAIN_ID,
-      ...p,
+  /** Wallet skill — portfolio snapshot. Still on V5 at the by-address endpoint. */
+  async getPortfolio(address: string, chainIndex: string = X_LAYER_CHAIN_INDEX): Promise<PortfolioSnapshot> {
+    const { data } = await this.http.get("/api/v5/wallet/asset/all-token-balances-by-address", {
+      params: { address, chains: chainIndex },
     });
-    const s = data?.data?.[0] ?? data?.data;
-    if (!s) throw new Error("OnchainOS simulate-tx: empty response");
-    return { success: Boolean(s.success), gasUsed: String(s.gasUsed ?? "0"), revertReason: s.revertReason };
-  }
-
-  /** Onchain Gateway skill — current gas price. */
-  async getGasPriceWei(): Promise<string> {
-    const { data } = await this.http.get("/api/v5/dex/aggregator/onchain-gateway/gas-price", {
-      params: { chainId: X_LAYER_CHAIN_ID },
-    });
-    const p = data?.data?.[0]?.normal ?? data?.data?.normal ?? data?.data;
-    if (p == null) throw new Error("OnchainOS gas-price: empty response");
-    return String(p);
-  }
-
-  /** Wallet skill — portfolio snapshot for an address. */
-  async getPortfolio(address: string): Promise<PortfolioSnapshot> {
-    const { data } = await this.http.get("/api/v5/wallet/asset/total-value", {
-      params: { address, chains: X_LAYER_CHAIN_ID },
-    });
-    const totalValueUsd = Number(data?.data?.[0]?.totalValue ?? 0);
-    const { data: bal } = await this.http.get("/api/v5/wallet/asset/all-token-balances", {
-      params: { address, chains: X_LAYER_CHAIN_ID },
-    });
-    const balances = (bal?.data?.[0]?.tokenAssets ?? []).map(
-      (b: { tokenAddress: string; balance: string; tokenPrice: string }) => ({
-        token: b.tokenAddress,
-        amountBaseUnits: b.balance,
-        valueUsd: Number(b.balance) * Number(b.tokenPrice ?? 0),
-      }),
+    if (data?.code !== "0" && data?.code !== 0) throw new Error(`OKX portfolio: ${data?.msg}`);
+    const tokenAssets = data.data?.[0]?.tokenAssets ?? [];
+    let total = 0;
+    const balances = tokenAssets.map(
+      (b: { tokenAddress?: string; address?: string; symbol: string; balance: string; tokenPrice: string; rawBalance: string }) => {
+        const valueUsd = Number(b.balance) * Number(b.tokenPrice ?? 0);
+        total += valueUsd;
+        return {
+          token: b.tokenAddress ?? b.address ?? "",
+          symbol: b.symbol,
+          amountBaseUnits: b.rawBalance ?? b.balance,
+          valueUsd,
+        };
+      },
     );
-    return { totalValueUsd, balances };
+    return { totalValueUsd: total, balances };
   }
 }
 

@@ -150,13 +150,13 @@ async function scoreYield(asset: Address): Promise<YieldOutput> {
   )[0];
 
   // OKX Market Data skill — USD price + recent candles. Adds market-regime
-  // context to the raw yield numbers. Mainnet only.
+  // context to the raw yield numbers. Mainnet only (V6 API).
   let marketContext: YieldOutput["marketContext"];
   if (okx && CHAIN_ID === 196) {
     try {
       const [priceInfo, candles] = await Promise.all([
-        okx.getMarketPriceUsd(asset).catch(() => null),
-        okx.getRecentCandles(asset, "1H", 4).catch(() => [] as Array<{ open: number; close: number; ts: number }>),
+        okx.getPriceInfo(asset).catch(() => null),
+        okx.getCandles(asset, "1H", 4).catch(() => []),
       ]);
       const first = candles[0]?.open ?? 0;
       const last = candles[candles.length - 1]?.close ?? 0;
@@ -165,7 +165,7 @@ async function scoreYield(asset: Address): Promise<YieldOutput> {
         priceUsd: priceInfo?.price ?? 0,
         recentChangePct: Number(change.toFixed(2)),
         candles: candles.length,
-        note: "Priced via OKX DEX Market Data skill (Onchain OS).",
+        note: "Priced via OKX DEX Market Data skill (Onchain OS V6).",
       };
     } catch (e) {
       marketContext = { priceUsd: 0, recentChangePct: 0, candles: 0, note: `okx err: ${(e as Error).message.slice(0, 60)}` };
