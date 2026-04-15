@@ -59,13 +59,15 @@ async function main() {
       const n = ethers.hexlify(ethers.randomBytes(32));
       const p = registry.recordCall(t.id, payer, t.amount, n, { nonce: nonce++ })
         .then((tx: any) => tx.wait())
-        .then(() => { confirmed++; });
+        .then(() => { confirmed++; })
+        .catch((e: any) => { console.log(`  tx failed: ${e?.shortMessage ?? e?.message ?? e}`); });
       pending.push(p);
       sent++;
 
       if (pending.length >= batchSize) {
         await Promise.all(pending.splice(0));
-        console.log(`  confirmed ${confirmed}/${totalTx}`);
+        nonce = await ethers.provider.getTransactionCount(signer.address, "pending");
+        console.log(`  confirmed ${confirmed}/${totalTx} (nonce=${nonce})`);
       }
     }
   }
