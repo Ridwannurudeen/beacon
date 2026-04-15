@@ -73,7 +73,8 @@ const [tvl, totalSupply, pricePerShare, head, paused, guardian, spot, twap] = aw
   rpc.getBlockNumber(),
   rpc.readContract({ address: v2.contracts.AtlasVaultV2, abi: VAULT_ABI, functionName: "paused" }),
   rpc.readContract({ address: v2.contracts.AtlasVaultV2, abi: VAULT_ABI, functionName: "guardian" }),
-  rpc.readContract({ address: v2.contracts.DemoAMM, abi: AMM_ABI, functionName: "spotPriceBInA" }),
+  // Mainnet uses FixedPriceSource; testnet uses DemoAMM. Both expose spotPriceBInA().
+  rpc.readContract({ address: v2.contracts.DemoAMM ?? v2.contracts.FixedPriceSource, abi: AMM_ABI, functionName: "spotPriceBInA" }),
   (async () => {
     try {
       return await rpc.readContract({
