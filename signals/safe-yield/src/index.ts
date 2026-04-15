@@ -151,6 +151,9 @@ app.get("/", (c: Context) =>
     cascade: composite.upstream.map((u) => ({ url: u.url, shareBps: u.shareBps })),
   })
 );
+app.get("/health", (c: Context) =>
+  c.json({ ok: true, chain: CHAIN_ID, upstreams: composite.upstream.length })
+);
 app.route("/signal", composite.app);
 
 serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
