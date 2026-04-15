@@ -100,15 +100,7 @@ async function redeem() {
 }
 
 function renderWalletChip() {
-  const slot = document.getElementById("wallet-slot");
-  if (!slot) return;
-  const state = wallet.getState();
-  if (!state.address) {
-    slot.innerHTML = `<button class="btn sm" id="wallet-connect-btn">Connect</button>`;
-    document.getElementById("wallet-connect-btn")?.addEventListener("click", connect);
-    return;
-  }
-  slot.innerHTML = `<span class="wallet-chip"><span class="wallet-chip-avatar"></span><span class="wallet-chip-addr">${wallet.shortAddr(state.address)}</span></span>`;
+  wallet.renderWalletChip("wallet-slot", { onToast: (msg, kind) => toast(msg, { kind }) });
 }
 
 async function main() {

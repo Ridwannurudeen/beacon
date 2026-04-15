@@ -4,11 +4,18 @@
  * withdraw all stay in sync.
  */
 
-const X_LAYER_TESTNET = "0x7a0";
+export const X_LAYER_TESTNET_HEX = "0x7a0";
+export const X_LAYER_TESTNET_ID = 1952;
+export const X_LAYER_FAUCET_URL = "https://www.okx.com/xlayer/faucet";
 const STORAGE_KEY = "beacon.wallet.address";
 
 export interface WalletState {
   address: string | null;
+  chainId: string | null; // hex, e.g. "0x7a0"
+}
+
+export function isCorrectChain(s: WalletState): boolean {
+  return s.chainId === X_LAYER_TESTNET_HEX;
 }
 
 interface EthRequestArguments {
@@ -27,7 +34,7 @@ declare global {
 }
 
 const listeners = new Set<(s: WalletState) => void>();
-let current: WalletState = { address: null };
+let current: WalletState = { address: null, chainId: null };
 
 export function getState(): WalletState {
   return current;
@@ -44,10 +51,24 @@ function emit() {
 }
 
 function setAddress(addr: string | null) {
-  current = { address: addr };
+  current = { ...current, address: addr };
   if (addr) localStorage.setItem(STORAGE_KEY, addr);
   else localStorage.removeItem(STORAGE_KEY);
   emit();
+}
+
+function setChain(chainId: string | null) {
+  current = { ...current, chainId };
+  emit();
+}
+
+async function readChain() {
+  const eth = getProvider();
+  if (!eth) return;
+  try {
+    const id = (await eth.request<string>({ method: "eth_chainId" })) ?? null;
+    setChain(id);
+  } catch { /* ignore */ }
 }
 
 export function getProvider(): EthereumProvider | null {
@@ -64,8 +85,10 @@ export async function connectWallet(): Promise<string | null> {
     const accounts = await eth.request<string[]>({ method: "eth_requestAccounts" });
     const addr = accounts?.[0] ?? null;
     if (!addr) return null;
-    await ensureChain();
     setAddress(addr);
+    await readChain();
+    // Attempt chain switch, but don't block the connection if the user rejects.
+    try { await ensureChain(); await readChain(); } catch { /* user can switch later */ }
     return addr;
   } catch (e) {
     console.warn("connect failed", e);
@@ -83,7 +106,7 @@ export async function ensureChain() {
   try {
     await eth.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: X_LAYER_TESTNET }],
+      params: [{ chainId: X_LAYER_TESTNET_HEX }],
     });
   } catch (e) {
     const err = e as { code?: number };
@@ -92,7 +115,7 @@ export async function ensureChain() {
         method: "wallet_addEthereumChain",
         params: [
           {
-            chainId: X_LAYER_TESTNET,
+            chainId: X_LAYER_TESTNET_HEX,
             chainName: "X Layer Testnet",
             nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
             rpcUrls: ["https://testrpc.xlayer.tech"],
@@ -100,8 +123,18 @@ export async function ensureChain() {
           },
         ],
       });
+    } else {
+      throw e;
     }
   }
+}
+
+export async function switchToTestnet(): Promise<boolean> {
+  try {
+    await ensureChain();
+    await readChain();
+    return isCorrectChain(current);
+  } catch { return false; }
 }
 
 export function shortAddr(a: string): string {
@@ -110,18 +143,55 @@ export function shortAddr(a: string): string {
 }
 
 export function init() {
-  // Restore from storage
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) current = { address: stored };
+  if (stored) current = { address: stored, chainId: null };
 
   const eth = getProvider();
   if (eth?.on) {
     eth.on("accountsChanged", (...args: unknown[]) => {
       const accounts = (args[0] as string[]) ?? [];
       setAddress(accounts[0] ?? null);
+      if (accounts[0]) readChain();
     });
-    eth.on("chainChanged", () => {
-      // noop — page will use whatever chain user picks; we don't auto-reload
+    eth.on("chainChanged", (...args: unknown[]) => {
+      const id = args[0] as string;
+      setChain(id ?? null);
     });
   }
+  if (current.address) readChain();
+}
+
+/**
+ * Shared wallet-chip renderer. Shows Connect button, address + disconnect,
+ * or wrong-chain warning with switch button.
+ */
+export function renderWalletChip(slotId: string, opts: { onToast?: (msg: string, kind: "info" | "success" | "error") => void } = {}) {
+  const slot = document.getElementById(slotId);
+  if (!slot) return;
+  const state = current;
+  const toast = opts.onToast ?? (() => {});
+  if (!state.address) {
+    slot.innerHTML = `<button class="btn sm" data-wallet-connect>Connect</button>`;
+    slot.querySelector("[data-wallet-connect]")?.addEventListener("click", async () => {
+      const a = await connectWallet();
+      if (a) toast(`Connected ${shortAddr(a)}`, "success");
+    });
+    return;
+  }
+  const wrongChain = !isCorrectChain(state);
+  slot.innerHTML = `
+    <span class="wallet-chip ${wrongChain ? "wrong-chain" : ""}" title="${state.address}">
+      <span class="wallet-chip-avatar"></span>
+      <span class="wallet-chip-addr">${shortAddr(state.address)}</span>
+      ${wrongChain ? `<button class="wallet-chip-switch" data-wallet-switch>Switch to X Layer Testnet</button>` : `<span class="wallet-chip-chain">X Layer Testnet</span>`}
+      <button class="wallet-chip-disconnect" data-wallet-disconnect aria-label="Disconnect">×</button>
+    </span>`;
+  slot.querySelector("[data-wallet-switch]")?.addEventListener("click", async () => {
+    const ok = await switchToTestnet();
+    toast(ok ? "Switched to X Layer Testnet" : "Switch rejected — stay on correct chain to use the app", ok ? "success" : "error");
+  });
+  slot.querySelector("[data-wallet-disconnect]")?.addEventListener("click", () => {
+    disconnectWallet();
+    toast("Wallet disconnected", "info");
+  });
 }

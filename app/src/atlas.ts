@@ -539,25 +539,8 @@ function initMobileDrawer() {
 // =========================================================================
 
 function renderWalletChip() {
-  const slot = document.getElementById("wallet-slot");
-  if (!slot) return;
-  const state = wallet.getState();
-  if (!state.address) {
-    slot.innerHTML = `<button class="btn sm" id="wallet-connect-btn">Connect</button>`;
-    document.getElementById("wallet-connect-btn")?.addEventListener("click", async () => {
-      const a = await wallet.connectWallet();
-      if (a) toast(`Connected ${wallet.shortAddr(a)}`, { kind: "success" });
-    });
-    return;
-  }
-  slot.innerHTML = `<span class="wallet-chip" title="${state.address}">
-    <span class="wallet-chip-avatar"></span>
-    <span class="wallet-chip-addr">${wallet.shortAddr(state.address)}</span>
-    <button class="wallet-chip-disconnect" aria-label="Disconnect">×</button>
-  </span>`;
-  slot.querySelector(".wallet-chip-disconnect")?.addEventListener("click", () => {
-    wallet.disconnectWallet();
-    toast("Wallet disconnected", { kind: "info" });
+  wallet.renderWalletChip("wallet-slot", {
+    onToast: (msg, kind) => { toast(msg, { kind }); },
   });
 }
 

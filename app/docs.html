@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Docs · Beacon · Atlas V2</title>
+    <meta name="description" content="How Beacon · Atlas V2 works — walkthrough for new users." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a href="/" class="brand">
+          <span class="brand-mark"></span>
+          <span>BEACON</span>
+          <span class="brand-sub">/ ATLAS V2</span>
+        </a>
+        <div class="nav-right">
+          <a class="nav-link" href="/">← Dashboard</a>
+          <a class="nav-link" href="/deposit.html">Deposit</a>
+          <a class="nav-link" href="/withdraw.html">Withdraw</a>
+          <a class="nav-link" href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">Faucet ↗</a>
+          <span class="chain-badge"><span class="status-dot"></span>X Layer Testnet · 1952</span>
+          <span id="wallet-slot"></span>
+        </div>
+      </nav>
+    </header>
+
+    <main class="docs-main">
+      <aside class="docs-toc">
+        <div class="docs-toc-title">On this page</div>
+        <a href="#what">What is Beacon · Atlas?</a>
+        <a href="#setup">1. Set up your wallet</a>
+        <a href="#faucet">2. Get testnet gas + bUSD</a>
+        <a href="#demo">3. Call a paid signal</a>
+        <a href="#deposit">4. Deposit into the vault</a>
+        <a href="#cascades">5. Read a cascade receipt</a>
+        <a href="#withdraw">6. Withdraw</a>
+        <a href="#primitives">Under the hood</a>
+        <a href="#contracts">Contracts</a>
+        <a href="#safety">Safety &amp; limits</a>
+        <a href="#glossary">Glossary</a>
+      </aside>
+
+      <article class="docs-body">
+        <div class="docs-hero">
+          <div class="hero-badge"><span class="pill">Docs</span><span>for new users · 5-min read</span></div>
+          <h1>How Beacon · Atlas works.</h1>
+          <p class="hero-lead">
+            Atlas is a multi-strategy vault on X Layer testnet where three AI strategies compete for capital.
+            One of them — <span class="mono">Skeptic</span> — pays the Beacon signal layer before every trade,
+            and each payment fans out (cascades) to upstream signal authors. Every cascade produces an
+            EIP-712 signed receipt anchored on-chain via <span class="mono">CascadeLedger</span>.
+          </p>
+        </div>
+
+        <section id="what">
+          <h2>What is Beacon · Atlas?</h2>
+          <p>
+            Two products in one repo:
+          </p>
+          <ol class="docs-list">
+            <li><b>Beacon SDK</b> — a small TypeScript toolkit that turns HTTP endpoints into paid x402 resources on X Layer. Compose signals into cascades; composites sign EIP-712 receipts of the full payment graph.</li>
+            <li><b>Atlas V2</b> — a Yearn V3-style ERC-4626 vault that allocates capital to three on-chain strategy contracts. Two trade heuristically (Fear = momentum, Greed = mean-revert). The third (Skeptic) buys paid intelligence from Beacon before trading — a live test of whether paid signals outperform free price action.</li>
+          </ol>
+          <p>
+            You'll see both in action on the dashboard: the strategy leaderboard shows Skeptic's live PnL,
+            and the Cascades tab shows every receipt Skeptic has anchored on-chain.
+          </p>
+        </section>
+
+        <section id="setup">
+          <h2>1. Set up your wallet</h2>
+          <p>Any EVM wallet works (MetaMask, OKX Wallet, Rabby). Click <b>Connect</b> in the top-right.</p>
+          <p>
+            If your wallet isn't on X Layer testnet, the chip will show a red indicator and a
+            <b>Switch to X Layer Testnet</b> button. Click it to add + switch in one prompt.
+          </p>
+          <div class="docs-note">
+            <b>Network details</b> (if your wallet asks to add it manually):
+            <ul class="mono docs-kv">
+              <li>Chain name <b>X Layer Testnet</b></li>
+              <li>Chain ID <b>1952 (0x7a0)</b></li>
+              <li>RPC <b>https://testrpc.xlayer.tech</b></li>
+              <li>Explorer <b>https://www.oklink.com/xlayer-test</b></li>
+              <li>Native token <b>OKB</b></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="faucet">
+          <h2>2. Get testnet gas + bUSD</h2>
+          <p>
+            You need two things to use the app: a little <b>testnet OKB</b> for gas, and some
+            <b>bUSD</b> (the settlement token for Beacon) for signal calls and vault deposits.
+          </p>
+          <ul class="docs-list">
+            <li>
+              <b>OKB</b> (gas) → <a href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">www.okx.com/xlayer/faucet ↗</a>.
+              Enter your wallet address, complete the human check. You'll receive a small drip.
+            </li>
+            <li>
+              <b>bUSD</b> (settlement) → open-mint on testnet. Use the <b>Mint 1 bUSD</b> button in the demo widget,
+              or the <span class="mono">mint(to, amount)</span> function on the bUSD contract directly.
+              Mint as much as you like — it's testnet.
+            </li>
+          </ul>
+        </section>
+
+        <section id="demo">
+          <h2>3. Call a paid signal</h2>
+          <p>
+            On the home page, scroll to <a href="/#demo">Try a paid signal call</a> and:
+          </p>
+          <ol class="docs-list">
+            <li>Connect your wallet.</li>
+            <li>If your bUSD balance is zero, click <b>Mint 1 bUSD</b> and approve the mint tx (costs a little OKB gas).</li>
+            <li>Click <b>Call signal →</b>. Your wallet will pop up asking to sign one EIP-3009 <span class="mono">TransferWithAuthorization</span> for 0.006 bUSD.</li>
+            <li>The server probes <span class="mono">GET safe-yield.gudman.xyz</span> → returns 402, you sign, retry with <span class="mono">X-Payment</span>, get 200 back.</li>
+            <li>The composite cascades payments to three upstream signal authors (<span class="mono">wallet-risk</span>, <span class="mono">liquidity-depth</span>, <span class="mono">yield-score</span>) and returns an EIP-712 signed <span class="mono">CascadeReceipt</span> in the <span class="mono">X-Cascade-Receipt</span> header.</li>
+            <li>The demo widget decodes that receipt and shows you every upstream settlement tx with a link to the block explorer.</li>
+          </ol>
+          <p class="dim">
+            What you <em>should</em> see: 4 settlement tx hashes on X Layer (1 from your wallet to the composite, 3 from the composite to upstream authors), all real, all within one call.
+          </p>
+        </section>
+
+        <section id="deposit">
+          <h2>4. Deposit into the vault</h2>
+          <p>
+            Open <a href="/deposit.html">the Deposit page</a>. Steps:
+          </p>
+          <ol class="docs-list">
+            <li>Connect wallet.</li>
+            <li>Enter an amount of bUSD (mint more if you need to).</li>
+            <li>Click <b>Approve</b> — standard ERC-20 approval for the vault.</li>
+            <li>Click <b>Deposit</b> — the vault mints you ATLS shares 1:1 against current NAV.</li>
+          </ol>
+          <p>
+            From that moment, your share of the vault is proportional to <span class="mono">balanceOf(you) / totalSupply()</span>.
+            As strategies book PnL, your NAV / share updates.
+          </p>
+        </section>
+
+        <section id="cascades">
+          <h2>5. Read a cascade receipt</h2>
+          <p>
+            Go to the <a href="/#tabs">Cascades tab</a> on the dashboard. Each row is one signed receipt.
+            Click a row to expand and see:
+          </p>
+          <ul class="docs-list">
+            <li>The <b>composite hash</b> — the EIP-712 hash that was signed.</li>
+            <li>The <b>buyer settlement tx</b> — the on-chain transfer your wallet authorized.</li>
+            <li>Each <b>upstream payment</b> — slug, author, amount, settlement tx.</li>
+            <li>The <b>anchor tx</b> — when Skeptic submitted the receipt to <span class="mono">CascadeLedger</span>. This is what makes it on-chain-provable.</li>
+          </ul>
+          <p>
+            Any agent or contract can now query <span class="mono">CascadeLedger</span> for Skeptic's payment history and verify
+            the signatures cryptographically — no trusted server required.
+          </p>
+        </section>
+
+        <section id="withdraw">
+          <h2>6. Withdraw</h2>
+          <p>
+            On the <a href="/withdraw.html">Withdraw page</a>, enter an ATLS share amount and click <b>Redeem</b>.
+            The vault burns your shares and sends you a proportional amount of bUSD from its idle balance.
+          </p>
+          <p>
+            If your redemption exceeds the vault's idle balance, the call reverts with
+            <span class="mono">WithdrawExceedsIdle</span>. Use the <span class="mono">WithdrawQueue</span> contract:
+            <span class="mono">requestWithdraw(shares)</span> escrows your shares, the admin recalls capital from a
+            strategy and calls <span class="mono">fulfill()</span>, then you call <span class="mono">claim()</span> to pull the bUSD.
+          </p>
+        </section>
+
+        <section id="primitives">
+          <h2>Under the hood — the two primitives</h2>
+          <h3>Beacon · paid signals with cascade receipts</h3>
+          <p>Any endpoint can become paid intelligence:</p>
+          <pre class="code-block">import { defineSignal } from "@beacon/sdk";
+
+const signal = defineSignal({
+  slug:  "my-signal",
+  price: 1500n,           // 0.0015 bUSD per call
+  payTo: account.address,
+  token: bUSDDescriptor,
+  chainId: 1952,
+  settlementWallet,
+  handler: async (ctx) =&gt; ({ score: 88, ts: Date.now() }),
+});</pre>
+          <p>Composites fan payments out to upstream authors and sign the graph:</p>
+          <pre class="code-block">defineComposite({
+  slug: "safe-yield",
+  upstream: [
+    { slug: "wallet-risk",     url: "...", shareBps: 3300 },
+    { slug: "liquidity-depth", url: "...", shareBps: 3300 },
+    { slug: "yield-score",     url: "...", shareBps: 3300 },
+  ],
+  handler: async (ctx, upstream) =&gt; ({ composite: score(upstream) }),
+});</pre>
+
+          <h3>Atlas V2 · ERC-4626 multi-strategy vault</h3>
+          <ul class="docs-list">
+            <li><b>AtlasVaultV2</b> — ERC-4626. Holds bUSD. Allocates to strategies via <span class="mono">allocate(strategy, amount)</span>.</li>
+            <li><b>IStrategy</b> — each strategy has a sub-wallet (strategy-owned, only-strategy-callable). PnL is computed from on-chain balance snapshots inside <span class="mono">report()</span>.</li>
+            <li><b>TwapOracle</b> — 30-min ring buffer. NAV uses this, not spot, to kill flash-loan manipulation.</li>
+            <li><b>SlashingRegistry</b> — strategies post stake, anyone can file a bond-backed fraud claim with a 24h challenge window.</li>
+            <li><b>CascadeLedger</b> — accepts EIP-712 signed <span class="mono">CascadeReceipt</span>s and emits <span class="mono">CascadeSettled</span> + <span class="mono">UpstreamPaid</span> events.</li>
+          </ul>
+        </section>
+
+        <section id="contracts">
+          <h2>Contracts (X Layer testnet · chainId 1952)</h2>
+          <div class="docs-contracts">
+            <div><b>AtlasVaultV2</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0xC968616eB00B80a8A72E9335b739223E212cb4F5" target="_blank" rel="noopener">0xC968…b4F5 ↗</a></div>
+            <div><b>CascadeLedger</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x270Bb62a10b4eEbF5e851ef826ff38b6a2A8ee8A" target="_blank" rel="noopener">0x270B…ee8A ↗</a></div>
+            <div><b>TwapOracle</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x641eeA815E8d8Ffbf21A190B0Ae67fC577cD607C" target="_blank" rel="noopener">0x641e…607C ↗</a></div>
+            <div><b>SlashingRegistry</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x2726f7Ea4277C33028904B8eD0f6eDD09DAFA9bD" target="_blank" rel="noopener">0x2726…A9bD ↗</a></div>
+            <div><b>Fear strategy</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x90cC2ef7586E3d5DAdFb34370Db7718ae2ee83F1" target="_blank" rel="noopener">0x90cC…83F1 ↗</a></div>
+            <div><b>Greed strategy</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0xba9f64C987e5D840C73B2d3DE1F3329052aFe244" target="_blank" rel="noopener">0xba9f…e244 ↗</a></div>
+            <div><b>Skeptic strategy</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x5c096f34Ae4f6E14DB68dd5278741892Afe98C71" target="_blank" rel="noopener">0x5c09…8C71 ↗</a></div>
+            <div><b>WithdrawQueue</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x86393DC9E4FD41f689847e1CC119197C248741D9" target="_blank" rel="noopener">0x8639…41D9 ↗</a></div>
+            <div><b>DemoAMM</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0x54F90b6D39284806639Bf376C28FA07d3547Cd76" target="_blank" rel="noopener">0x54F9…Cd76 ↗</a></div>
+            <div><b>bUSD (open-mint)</b><a class="mono" href="https://www.oklink.com/xlayer-test/address/0xe5A5A31145dc44EB3BD701897cd825b2443A6B76" target="_blank" rel="noopener">0xe5A5…6B76 ↗</a></div>
+          </div>
+        </section>
+
+        <section id="safety">
+          <h2>Safety &amp; limits</h2>
+          <ul class="docs-list">
+            <li><b>This is testnet.</b> bUSD and OKB have zero real value. Don't deposit anything you can't afford to lose track of.</li>
+            <li><b>Not audited.</b> 42/42 contract tests pass (10 adversarial: NAV inflation, custody breach, fraud-claim edge cases, etc.). Slither is clean of high/medium findings. Foundry invariants run in CI. Mainnet would require a professional audit first.</li>
+            <li><b>NAV is TWAP-priced.</b> 30-min window. Single-block flash loans cannot move the NAV reference.</li>
+            <li><b>Strategies are slashable.</b> Anyone can file a bond-backed fraud claim. 24h challenge window. Admin can also call <span class="mono">emergencyRevokeStrategy</span> to pull capital instantly.</li>
+            <li><b>The vault is pausable</b> by the guardian for incident response.</li>
+          </ul>
+        </section>
+
+        <section id="glossary">
+          <h2>Glossary</h2>
+          <dl class="docs-gloss">
+            <dt>x402</dt><dd>HTTP status 402 ("Payment Required") + a protocol for paying for a retry. Beacon's signals return 402 with a <span class="mono">PaymentRequired</span> body; the client signs an EIP-3009 <span class="mono">TransferWithAuthorization</span> and retries with an <span class="mono">X-Payment</span> header.</dd>
+            <dt>EIP-3009</dt><dd>Gasless ERC-20 transfer via typed-data signature. Signer can authorize a third party to pull tokens; no on-chain approve needed.</dd>
+            <dt>Cascade receipt</dt><dd>An EIP-712 signed payload listing every upstream payment the composite made to serve one buyer call. Returned in <span class="mono">X-Cascade-Receipt</span>, indexable on <span class="mono">CascadeLedger</span>.</dd>
+            <dt>NAV</dt><dd>Net asset value per vault share. Equals total vault assets (TWAP-priced) divided by total shares.</dd>
+            <dt>Sub-wallet</dt><dd>A strategy-owned contract that holds the capital the vault allocated. Only the strategy contract can call it — the vault can only pull capital via <span class="mono">recall()</span>.</dd>
+            <dt>ATLS</dt><dd>The vault's share token. 1 ATLS = proportional claim on the vault's NAV.</dd>
+          </dl>
+          <p class="dim" style="margin-top: 32px;">
+            Still stuck? Open an issue at <a href="https://github.com/Ridwannurudeen/beacon/issues" target="_blank" rel="noopener">github.com/Ridwannurudeen/beacon/issues</a>.
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>BEACON · ATLAS V2 · Docs</div>
+        <div class="footer-links">
+          <a href="/">← Home</a>
+          <a href="/deposit.html">Deposit</a>
+          <a href="/withdraw.html">Withdraw</a>
+          <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/docs.ts"></script>
+  </body>
+</html>
