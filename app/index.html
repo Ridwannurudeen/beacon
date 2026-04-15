@@ -25,8 +25,7 @@
         </a>
         <div class="nav-right">
           <a class="nav-link" href="/docs.html">Docs</a>
-          <a class="nav-link" href="#tabs">Dashboard</a>
-          <a class="nav-link" href="#demo">Try it</a>
+          <a class="nav-link" href="/status.html">Status</a>
           <a class="nav-link" href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener" title="Get testnet OKB for gas">Faucet ↗</a>
           <a class="nav-link btn sm" href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
           <span class="chain-badge"><span class="status-dot"></span>X Layer Testnet · 1952</span>
@@ -40,13 +39,8 @@
 
     <div class="mobile-drawer" id="mobile-drawer">
       <a href="/docs.html">Docs</a>
-      <a href="#tabs">Dashboard</a>
-      <a href="#demo">Try it</a>
+      <a href="/status.html">Status</a>
       <a href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">Testnet Faucet ↗</a>
-      <a href="#how">How it works</a>
-      <a href="#compare">Compare</a>
-      <a href="#faq">FAQ</a>
-      <a href="#status">Status</a>
       <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub ↗</a>
       <a href="/deposit.html">Deposit →</a>
       <a href="/withdraw.html">Withdraw →</a>
@@ -67,7 +61,7 @@
           </p>
           <div class="hero-ctas">
             <a class="btn primary" href="/deposit.html">Deposit bUSD</a>
-            <a class="btn" href="#demo">Try a paid call</a>
+            <a class="btn" href="/docs.html">Read the docs</a>
             <span class="status-pill">
               <span class="status-dot"></span>
               <span id="last-updated">syncing…</span>
@@ -102,52 +96,6 @@
               <span class="stat-label">Upstream Payments</span>
               <span class="stat-value" data-metric="upstream-payments">—</span>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============================ LIVE DEMO ============================ -->
-      <section id="demo">
-        <div class="section-head">
-          <div>
-            <div class="section-title">Try a paid signal call</div>
-            <p class="section-sub">
-              Connect your wallet, sign one EIP-3009 authorization, and watch the
-              <span class="mono">safe-yield</span> composite cascade x402 payments to three
-              upstream signal authors — live, on X Layer testnet.
-            </p>
-          </div>
-        </div>
-        <div class="demo-widget">
-          <div class="demo-side">
-            <h3>1 — request</h3>
-            <div class="demo-form">
-              <div class="demo-row">
-                <div class="info">Endpoint <b id="demo-endpoint">safe-yield.gudman.xyz</b></div>
-              </div>
-              <div class="demo-row">
-                <div class="info">Cost <b>0.006 bUSD</b> · 4 settlements expected</div>
-              </div>
-              <div class="demo-row">
-                <div class="info">Wallet <b id="demo-wallet">not connected</b></div>
-              </div>
-              <div class="demo-row">
-                <div class="info">bUSD balance <b id="demo-balance">—</b></div>
-              </div>
-              <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap">
-                <button class="btn primary" id="demo-call">Call signal →</button>
-                <button class="btn sm" id="demo-mint">Mint 1 bUSD</button>
-                <a class="btn sm" href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener" title="Get testnet OKB for gas">Faucet ↗</a>
-              </div>
-              <div class="dim" style="margin-top:8px; font-size:11px;">
-                Need gas? Get testnet OKB from the <a href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">X Layer faucet</a>.
-                bUSD is self-mintable via the button above (open-mint testnet token).
-              </div>
-            </div>
-          </div>
-          <div class="demo-side">
-            <h3>2 — response</h3>
-            <div class="demo-output" id="demo-output">Connect a wallet, then click Call signal.</div>
           </div>
         </div>
       </section>
@@ -269,99 +217,7 @@
         </div>
       </section>
 
-      <!-- ============================ HOW ============================ -->
-      <section id="how">
-        <div class="section-head">
-          <div><div class="section-title">How the cascade works</div><p class="section-sub">Two primitives compose into one provable economic loop.</p></div>
-        </div>
-        <ol class="steps">
-          <li class="step"><div class="step-num">01 — DEFINE</div><h3>Publish a Signal</h3><p><span class="mono">defineSignal({ slug, price, handler })</span> turns your endpoint into a paid x402 resource on X Layer.</p></li>
-          <li class="step"><div class="step-num">02 — COMPOSE</div><h3>Compose into a cascade</h3><p><span class="mono">defineComposite({ upstream, shareBps })</span> fans out x402 payments to upstream authors. The composite signs an EIP-712 receipt of the payment graph.</p></li>
-          <li class="step"><div class="step-num">03 — TRADE</div><h3>Skeptic pays for intelligence</h3><p>The Skeptic strategy buys <span class="mono">safe-yield</span> via x402 before each trade. Signal cost is real performance drag.</p></li>
-          <li class="step"><div class="step-num">04 — ANCHOR</div><h3>Anchor on-chain</h3><p>The signed CascadeReceipt is submitted to <span class="mono">CascadeLedger</span> — emits <span class="mono">CascadeSettled</span> + <span class="mono">UpstreamPaid</span> events.</p></li>
-        </ol>
-      </section>
 
-      <!-- ============================ COMPARE ============================ -->
-      <section id="compare">
-        <div class="section-head">
-          <div><div class="section-title">Vs the alternatives</div><p class="section-sub">Atlas borrows what's good from prior multi-strategy vaults and adds the cascade-receipt primitive nobody else has.</p></div>
-        </div>
-        <div class="compare-wrap">
-          <table class="compare-table">
-            <thead>
-              <tr>
-                <th>Feature</th>
-                <th class="us">Atlas V2</th>
-                <th>Yearn V3</th>
-                <th>Beefy</th>
-                <th>Sommelier</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td class="feature">Vault-controlled sub-wallet custody</td><td class="us check">✓</td><td class="check">✓</td><td class="x">—</td><td class="check">✓</td></tr>
-              <tr><td class="feature">On-chain P&amp;L via balance snapshots</td><td class="us check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
-              <tr><td class="feature">TWAP NAV oracle (anti flash-loan)</td><td class="us check">✓</td><td class="check">✓</td><td class="x">—</td><td class="check">✓</td></tr>
-              <tr><td class="feature">Slashing-backed strategy stake</td><td class="us check">✓</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
-              <tr><td class="feature">x402 paid intelligence in strategy logic</td><td class="us check">✓</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
-              <tr><td class="feature">EIP-712 signed cascade receipts</td><td class="us check">✓ first</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
-              <tr><td class="feature">On-chain receipt registry</td><td class="us check">✓ CascadeLedger</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
-              <tr><td class="feature">MCP server for any agent client</td><td class="us check">✓</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
-              <tr><td class="feature">Open-source SDK on npm</td><td class="us check">✓ @beacon/sdk</td><td class="check">✓</td><td class="x">—</td><td class="check">✓</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ============================ FAQ ============================ -->
-      <section id="faq">
-        <div class="section-head">
-          <div><div class="section-title">FAQ</div><p class="section-sub">Real questions, honest answers.</p></div>
-        </div>
-        <div class="faq-list" id="faq-list">
-          <div class="faq-item"><div class="faq-q">What is bUSD and why isn't this real money?</div><div class="faq-a">bUSD is a testnet ERC-3009 token Atlas deploys for demo settlement. The vault, strategies, and cascade flow are all real on X Layer testnet. Mainnet deployment uses real USDT0/USDC; the architecture is identical.</div></div>
-          <div class="faq-item"><div class="faq-q">What's the actual edge?</div><div class="faq-a">Atlas combines two primitives nobody has shipped together: vault-custody multi-strategy capital allocation (Yearn V3 shape) plus EIP-712 signed cascade receipts (a new primitive from @beacon/sdk). The Skeptic strategy is the live test of whether paid intelligence beats free price action.</div></div>
-          <div class="faq-item"><div class="faq-q">How is Skeptic's PnL accounted for?</div><div class="faq-a">All P&amp;L derives from on-chain balance snapshots inside <span class="mono">IStrategy.report()</span>. The strategy compares its sub-wallet's current equity (bUSD + MOCK-X valued at TWAP) against cumulative debt allocated by the vault. Signal costs come out of the executor's bUSD, so they show up directly as performance drag.</div></div>
-          <div class="faq-item"><div class="faq-q">Can someone manipulate NAV with a flash loan?</div><div class="faq-a">No. NAV uses a 30-minute TWAP from <span class="mono">TwapOracle</span>, not raw AMM spot. Single-block manipulation can't move the price reference enough to inflate share value.</div></div>
-          <div class="faq-item"><div class="faq-q">What happens if a strategy goes rogue?</div><div class="faq-a">Strategies must post a stake with <span class="mono">SlashingRegistry</span>. Anyone can open a fraud claim with a bond. After a 24h challenge window, unresolved claims slash the stake. The vault admin can also call <span class="mono">emergencyRevokeStrategy</span> to pull all capital back instantly.</div></div>
-          <div class="faq-item"><div class="faq-q">How do I withdraw?</div><div class="faq-a">Use the <a href="/withdraw.html">withdraw page</a>. Standard ERC-4626 withdrawals come from the vault's idle bUSD balance. For larger redemptions when capital is allocated, use the <span class="mono">WithdrawQueue</span> (request → admin recall → claim).</div></div>
-          <div class="faq-item"><div class="faq-q">What's a CascadeReceipt and why does it matter?</div><div class="faq-a">An EIP-712 signed payload listing every upstream the composite paid (slug, author address, amount, on-chain settlement tx) when serving one buyer call. Provable cryptographically without trusting the server. Indexable on <span class="mono">CascadeLedger</span> for permanent on-chain history. Replaces heuristic block-window matching used by other agent-marketplace demos.</div></div>
-          <div class="faq-item"><div class="faq-q">Has this been audited?</div><div class="faq-a">Not professionally. 42/42 contract tests pass including 10 adversarial tests (NAV inflation, custody breach, fraud claims, etc), Slither is clean of high/medium findings, Foundry invariants in CI. Mainnet deployment would require a full audit first.</div></div>
-        </div>
-      </section>
-
-      <!-- ============================ STATUS ============================ -->
-      <section id="status">
-        <div class="section-head">
-          <div><div class="section-title">Service status</div><p class="section-sub">Live health checks against every signal endpoint.</p></div>
-          <div class="section-meta"><span class="status-dot"></span><span id="status-updated">checking…</span></div>
-        </div>
-        <div class="status-grid" id="status-grid">
-          <div class="status-item"><div class="status-item-name">Atlas dashboard<span>beacon.gudman.xyz</span></div><div class="status-item-state"><span class="status-dot"></span><span>up</span></div></div>
-        </div>
-      </section>
-
-      <!-- ============================ SDK ============================ -->
-      <section id="sdk">
-        <div class="section-head">
-          <div><div class="section-title">Build on @beacon/sdk</div><p class="section-sub">Five minutes to ship a paid signal. Composite cascades + signed receipts come for free.</p></div>
-          <a class="btn" href="https://github.com/Ridwannurudeen/beacon/tree/main/packages/sdk" target="_blank" rel="noopener">View on GitHub →</a>
-        </div>
-        <pre class="code-block"><span class="comment">// npm install @beacon/sdk</span>
-
-import { defineSignal, xLayerTestnetWalletClient } from <span class="string">"@beacon/sdk"</span>;
-
-const signal = defineSignal({
-  slug:        <span class="string">"my-signal"</span>,
-  description: <span class="string">"What this returns"</span>,
-  price:       <span class="keyword">1500n</span>,           <span class="comment">// 0.0015 bUSD per call</span>
-  payTo:       account.address,
-  token:       bUSDDescriptor,
-  chainId:     <span class="keyword">1952</span>,
-  settlementWallet,
-  handler: <span class="keyword">async</span> (ctx) =&gt; ({ <span class="comment">/* your data */</span> }),
-});</pre>
-      </section>
     </main>
 
     <!-- STRATEGY DETAIL MODAL -->
@@ -386,11 +242,13 @@ const signal = defineSignal({
       <div class="footer-inner">
         <div>BEACON · ATLAS V2 · X Layer testnet · 42/42 contracts tested · Slither clean</div>
         <div class="footer-links">
+          <a href="/docs.html">Docs</a>
+          <a href="/status.html">Status</a>
+          <a href="/deposit.html">Deposit</a>
+          <a href="/withdraw.html">Withdraw</a>
           <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
           <a href="https://www.oklink.com/xlayer-test" target="_blank" rel="noopener">OKLink</a>
-          <a href="https://web3.okx.com/xlayer" target="_blank" rel="noopener">X Layer</a>
           <a href="/atlas.json">atlas.json</a>
-          <a href="/withdraw.html">Withdraw</a>
         </div>
       </div>
     </footer>

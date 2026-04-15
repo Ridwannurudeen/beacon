@@ -40,8 +40,10 @@
         <a href="#cascades">5. Read a cascade receipt</a>
         <a href="#withdraw">6. Withdraw</a>
         <a href="#primitives">Under the hood</a>
+        <a href="#compare">Vs the alternatives</a>
         <a href="#contracts">Contracts</a>
         <a href="#safety">Safety &amp; limits</a>
+        <a href="#faq">FAQ</a>
         <a href="#glossary">Glossary</a>
       </aside>
 
@@ -113,8 +115,32 @@
         <section id="demo">
           <h2>3. Call a paid signal</h2>
           <p>
-            On the home page, scroll to <a href="/#demo">Try a paid signal call</a> and:
+            Try it right here — no leaving the page:
           </p>
+          <div class="demo-widget" style="margin-bottom: 20px;">
+            <div class="demo-side">
+              <h3>1 — request</h3>
+              <div class="demo-form">
+                <div class="demo-row"><div class="info">Endpoint <b>safe-yield.gudman.xyz</b></div></div>
+                <div class="demo-row"><div class="info">Cost <b>0.006 bUSD</b> · 4 settlements expected</div></div>
+                <div class="demo-row"><div class="info">Wallet <b id="demo-wallet">not connected</b></div></div>
+                <div class="demo-row"><div class="info">bUSD balance <b id="demo-balance">—</b></div></div>
+                <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap">
+                  <button class="btn primary" id="demo-call">Call signal →</button>
+                  <button class="btn sm" id="demo-mint">Mint 1 bUSD</button>
+                  <a class="btn sm" href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">Faucet ↗</a>
+                </div>
+                <div class="dim" style="margin-top:8px; font-size:11px;">
+                  Need gas? Get testnet OKB from the <a href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">X Layer faucet</a>.
+                </div>
+              </div>
+            </div>
+            <div class="demo-side">
+              <h3>2 — response</h3>
+              <div class="demo-output" id="demo-output">Connect a wallet, then click Call signal.</div>
+            </div>
+          </div>
+          <p>What happens when you click:</p>
           <ol class="docs-list">
             <li>Connect your wallet.</li>
             <li>If your bUSD balance is zero, click <b>Mint 1 bUSD</b> and approve the mint tx (costs a little OKB gas).</li>
@@ -213,6 +239,35 @@ const signal = defineSignal({
           </ul>
         </section>
 
+        <section id="compare">
+          <h2>Vs the alternatives</h2>
+          <p>Atlas borrows what's good from prior multi-strategy vaults and adds primitives nobody else has:</p>
+          <div class="compare-wrap">
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th class="us">Atlas V2</th>
+                  <th>Yearn V3</th>
+                  <th>Beefy</th>
+                  <th>Sommelier</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="feature">Vault-controlled sub-wallet custody</td><td class="us check">✓</td><td class="check">✓</td><td class="x">—</td><td class="check">✓</td></tr>
+                <tr><td class="feature">On-chain P&amp;L via balance snapshots</td><td class="us check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+                <tr><td class="feature">TWAP NAV oracle (anti flash-loan)</td><td class="us check">✓</td><td class="check">✓</td><td class="x">—</td><td class="check">✓</td></tr>
+                <tr><td class="feature">Slashing-backed strategy stake</td><td class="us check">✓</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
+                <tr><td class="feature">x402 paid intelligence in strategy logic</td><td class="us check">✓</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
+                <tr><td class="feature">EIP-712 signed cascade receipts</td><td class="us check">✓ first</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
+                <tr><td class="feature">On-chain receipt registry</td><td class="us check">✓ CascadeLedger</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
+                <tr><td class="feature">MCP server for any agent client</td><td class="us check">✓</td><td class="x">—</td><td class="x">—</td><td class="x">—</td></tr>
+                <tr><td class="feature">Open-source SDK on npm</td><td class="us check">✓ @beacon/sdk</td><td class="check">✓</td><td class="x">—</td><td class="check">✓</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section id="contracts">
           <h2>Contracts (X Layer testnet · chainId 1952)</h2>
           <div class="docs-contracts">
@@ -238,6 +293,20 @@ const signal = defineSignal({
             <li><b>Strategies are slashable.</b> Anyone can file a bond-backed fraud claim. 24h challenge window. Admin can also call <span class="mono">emergencyRevokeStrategy</span> to pull capital instantly.</li>
             <li><b>The vault is pausable</b> by the guardian for incident response.</li>
           </ul>
+        </section>
+
+        <section id="faq">
+          <h2>FAQ</h2>
+          <div class="faq-list">
+            <div class="faq-item"><div class="faq-q">What is bUSD and why isn't this real money?</div><div class="faq-a">bUSD is a testnet ERC-3009 token Atlas deploys for demo settlement. The vault, strategies, and cascade flow are all real on X Layer testnet. Mainnet deployment uses real USDT0/USDC; the architecture is identical.</div></div>
+            <div class="faq-item"><div class="faq-q">What's the actual edge?</div><div class="faq-a">Atlas combines two primitives nobody has shipped together: vault-custody multi-strategy capital allocation (Yearn V3 shape) plus EIP-712 signed cascade receipts (a new primitive from @beacon/sdk). The Skeptic strategy is the live test of whether paid intelligence beats free price action.</div></div>
+            <div class="faq-item"><div class="faq-q">How is Skeptic's PnL accounted for?</div><div class="faq-a">All P&amp;L derives from on-chain balance snapshots inside <span class="mono">IStrategy.report()</span>. The strategy compares its sub-wallet's current equity (bUSD + MOCK-X valued at TWAP) against cumulative debt allocated by the vault. Signal costs come out of the executor's bUSD, so they show up directly as performance drag.</div></div>
+            <div class="faq-item"><div class="faq-q">Can someone manipulate NAV with a flash loan?</div><div class="faq-a">No. NAV uses a 30-minute TWAP from <span class="mono">TwapOracle</span>, not raw AMM spot. Single-block manipulation can't move the price reference enough to inflate share value.</div></div>
+            <div class="faq-item"><div class="faq-q">What happens if a strategy goes rogue?</div><div class="faq-a">Strategies must post a stake with <span class="mono">SlashingRegistry</span>. Anyone can open a fraud claim with a bond. After a 24h challenge window, unresolved claims slash the stake. The vault admin can also call <span class="mono">emergencyRevokeStrategy</span> to pull all capital back instantly.</div></div>
+            <div class="faq-item"><div class="faq-q">How do I withdraw?</div><div class="faq-a">Use the <a href="/withdraw.html">withdraw page</a>. Standard ERC-4626 withdrawals come from the vault's idle bUSD balance. For larger redemptions when capital is allocated, use the <span class="mono">WithdrawQueue</span> (request → admin recall → claim).</div></div>
+            <div class="faq-item"><div class="faq-q">What's a CascadeReceipt and why does it matter?</div><div class="faq-a">An EIP-712 signed payload listing every upstream the composite paid (slug, author address, amount, on-chain settlement tx) when serving one buyer call. Provable cryptographically without trusting the server. Indexable on <span class="mono">CascadeLedger</span> for permanent on-chain history. Replaces heuristic block-window matching used by other agent-marketplace demos.</div></div>
+            <div class="faq-item"><div class="faq-q">Has this been audited?</div><div class="faq-a">Not professionally. 42/42 contract tests pass including 10 adversarial tests (NAV inflation, custody breach, fraud claims, etc), Slither is clean of high/medium findings, Foundry invariants in CI. Mainnet deployment would require a full audit first.</div></div>
+          </div>
         </section>
 
         <section id="glossary">

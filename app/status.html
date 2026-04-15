@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Status · Beacon · Atlas V2</title>
+    <meta name="description" content="Live health checks for Beacon signal endpoints." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a href="/" class="brand">
+          <span class="brand-mark"></span>
+          <span>BEACON</span>
+          <span class="brand-sub">/ ATLAS V2</span>
+        </a>
+        <div class="nav-right">
+          <a class="nav-link" href="/">← Dashboard</a>
+          <a class="nav-link" href="/docs.html">Docs</a>
+          <a class="nav-link" href="https://www.okx.com/xlayer/faucet" target="_blank" rel="noopener">Faucet ↗</a>
+          <span class="chain-badge"><span class="status-dot"></span>X Layer Testnet · 1952</span>
+          <span id="wallet-slot"></span>
+        </div>
+      </nav>
+    </header>
+
+    <main style="max-width: 900px; margin: 0 auto; padding: 60px 24px;">
+      <div class="hero-badge"><span class="pill">Status</span><span>live health checks</span></div>
+      <h1 style="font-size: clamp(32px, 4vw, 48px); font-weight: 700; letter-spacing: -0.02em; margin: 16px 0 12px;">All systems</h1>
+      <p class="hero-lead" style="margin-bottom: 32px;">
+        Live HTTP health checks against every Beacon signal endpoint and the Atlas registry.
+        Polled every 60 seconds from your browser.
+      </p>
+      <div class="section-meta" style="margin-bottom: 20px;">
+        <span class="status-dot"></span>
+        <span id="status-updated">checking…</span>
+      </div>
+      <div class="status-grid" id="status-grid"></div>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>BEACON · ATLAS V2 · Status</div>
+        <div class="footer-links">
+          <a href="/">← Home</a>
+          <a href="/docs.html">Docs</a>
+          <a href="https://github.com/Ridwannurudeen/beacon" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/status.ts"></script>
+  </body>
+</html>

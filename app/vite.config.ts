@@ -12,6 +12,7 @@ export default defineConfig({
         deposit: "deposit.html",
         withdraw: "withdraw.html",
         docs: "docs.html",
+        status: "status.html",
         notfound: "404.html",
       },
     },

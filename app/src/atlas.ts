@@ -14,7 +14,6 @@
 import uPlot from "uplot";
 import * as wallet from "./wallet.js";
 import { toast } from "./toast.js";
-import { payAndCall, getBusdBalance, mintBusd, type BUSDDescriptor } from "./x402-browser.js";
 
 interface UpstreamEvent {
   index: number; slug: string; author: string; amount: string;
@@ -46,16 +45,6 @@ interface AtlasState {
 const ATLAS_URL = import.meta.env.VITE_ATLAS_URL ?? "/atlas.json";
 const REFRESH_MS = 5_000;
 const HISTORY_MAX = 120;
-const SAFE_YIELD_URL = "https://safe-yield.gudman.xyz/signal/safe-yield";
-
-const SIGNAL_ENDPOINTS = [
-  { name: "safe-yield (composite)", url: "https://safe-yield.gudman.xyz/health" },
-  { name: "wallet-risk", url: "https://wallet-risk.gudman.xyz/health" },
-  { name: "liquidity-depth", url: "https://liquidity-depth.gudman.xyz/health" },
-  { name: "yield-score", url: "https://yield-score.gudman.xyz/health" },
-  { name: "MCP server", url: "https://mcp.gudman.xyz/health" },
-  { name: "atlas.json", url: "/atlas.json" },
-];
 
 const equityHistory = new Map<string, { x: number[]; y: number[] }>();
 const tvlHistory: { x: number[]; y: number[] } = { x: [], y: [] };
@@ -518,14 +507,6 @@ function initTabs() {
   });
 }
 
-function initFAQ() {
-  document.querySelectorAll<HTMLElement>(".faq-item").forEach((item) => {
-    const q = item.querySelector(".faq-q");
-    if (!q) return;
-    q.addEventListener("click", () => item.classList.toggle("open"));
-  });
-}
-
 function initMobileDrawer() {
   const toggle = document.getElementById("menu-toggle");
   const drawer = document.getElementById("mobile-drawer");
@@ -542,133 +523,6 @@ function renderWalletChip() {
   wallet.renderWalletChip("wallet-slot", {
     onToast: (msg, kind) => { toast(msg, { kind }); },
   });
-}
-
-// =========================================================================
-// Demo widget
-// =========================================================================
-
-async function refreshDemoWalletInfo() {
-  const state = wallet.getState();
-  const w = document.getElementById("demo-wallet");
-  const b = document.getElementById("demo-balance");
-  if (w) w.textContent = state.address ? wallet.shortAddr(state.address) : "not connected";
-  if (b) {
-    if (!state.address || !lastState?.contracts.bUSD) { b.textContent = "—"; return; }
-    try {
-      const bal = await getBusdBalance(state.address, lastState.contracts.bUSD);
-      b.textContent = `${(Number(bal) / 1_000_000).toFixed(4)} bUSD`;
-    } catch { b.textContent = "—"; }
-  }
-}
-
-function initDemoWidget() {
-  const callBtn = document.getElementById("demo-call") as HTMLButtonElement | null;
-  const mintBtn = document.getElementById("demo-mint") as HTMLButtonElement | null;
-  const out = document.getElementById("demo-output");
-  if (!callBtn || !mintBtn || !out) return;
-
-  callBtn.addEventListener("click", async () => {
-    const state = wallet.getState();
-    if (!state.address) { toast("Connect a wallet first", { kind: "error" }); return; }
-    if (!lastState?.token) { toast("Atlas registry not loaded", { kind: "error" }); return; }
-    callBtn.disabled = true;
-    out.innerHTML = `<span class="dim">Probing endpoint, then signing EIP-3009 authorization…</span>`;
-    const dismiss = toast("Calling safe-yield…", { kind: "pending" });
-    try {
-      const desc: BUSDDescriptor = {
-        address: lastState.token.address,
-        name: lastState.token.name,
-        version: lastState.token.version,
-        symbol: lastState.token.symbol,
-        decimals: lastState.token.decimals,
-      };
-      const res = await payAndCall(SAFE_YIELD_URL, state.address, desc, lastState.chain.id);
-      dismiss();
-      const exp = lastState.chain.explorer;
-      const upstreams = res.cascadeReceipt?.upstreams ?? [];
-      out.innerHTML = `
-        <div class="ok">${res.status} OK</div>
-        <pre style="margin:8px 0 12px; white-space:pre-wrap; font-size:11px; line-height:1.5;">${escapeHtml(JSON.stringify(res.body, null, 2)).slice(0, 600)}</pre>
-        ${res.paymentTx ? `<div>buyer settlement: <a href="${exp}/tx/${res.paymentTx}" target="_blank">${shortTx(res.paymentTx)} ↗</a></div>` : ""}
-        ${res.cascadeReceipt ? `<div style="margin-top:10px;">composite: <span class="mono">${shortTx(res.cascadeReceipt.composite)}</span></div>
-        <div style="margin-top:6px;"><b>${upstreams.length}</b> upstream payments:</div>
-        <div class="upstream-list" style="margin-top:6px;">
-          ${upstreams.map((u) => `<a class="upstream-row" href="${exp}/tx/${u.settlementTx}" target="_blank" rel="noopener">
-            <span class="arrow">└→</span><span>${u.slug}</span>
-            <span class="amount">${(Number(u.amount) / 1_000_000).toFixed(4)} bUSD</span>
-            <span>${shortTx(u.settlementTx)} ↗</span></a>`).join("")}
-        </div>` : ""}`;
-      toast(`Signal returned · ${upstreams.length} cascade hops`, {
-        kind: "success",
-        action: res.paymentTx ? { label: "view tx", href: `${exp}/tx/${res.paymentTx}` } : undefined,
-      });
-      refreshDemoWalletInfo();
-    } catch (e) {
-      dismiss();
-      const msg = (e as Error).message;
-      out.innerHTML = `<span style="color:var(--neg)">error</span>\n${escapeHtml(msg)}`;
-      toast(`Call failed: ${msg}`, { kind: "error" });
-    } finally {
-      callBtn.disabled = false;
-    }
-  });
-
-  mintBtn.addEventListener("click", async () => {
-    const state = wallet.getState();
-    if (!state.address) { toast("Connect a wallet first", { kind: "error" }); return; }
-    if (!lastState?.contracts.bUSD) { toast("bUSD address not loaded", { kind: "error" }); return; }
-    mintBtn.disabled = true;
-    const dismiss = toast("Minting 1 bUSD…", { kind: "pending" });
-    try {
-      const tx = await mintBusd(state.address, 1_000_000n, lastState.contracts.bUSD);
-      dismiss();
-      toast("1 bUSD minted", {
-        kind: "success",
-        action: { label: "view tx", href: `${lastState.chain.explorer}/tx/${tx}` },
-      });
-      setTimeout(refreshDemoWalletInfo, 4000);
-    } catch (e) {
-      dismiss();
-      toast(`Mint failed: ${(e as Error).message}`, { kind: "error" });
-    } finally {
-      mintBtn.disabled = false;
-    }
-  });
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// =========================================================================
-// Status grid
-// =========================================================================
-
-async function renderStatus() {
-  const grid = document.getElementById("status-grid");
-  const upd = document.getElementById("status-updated");
-  if (!grid) return;
-  grid.innerHTML = SIGNAL_ENDPOINTS.map((s) => `
-    <div class="status-item" data-name="${s.name}">
-      <div class="status-item-name">${s.name}<span>${s.url.replace(/^https?:\/\//, "")}</span></div>
-      <div class="status-item-state"><span class="status-dot status-dot-yellow"></span><span>checking…</span></div>
-    </div>`).join("");
-
-  const checks = SIGNAL_ENDPOINTS.map(async (s) => {
-    const el = grid.querySelector<HTMLElement>(`[data-name="${s.name}"] .status-item-state`);
-    const t0 = performance.now();
-    try {
-      const r = await fetch(s.url, { cache: "no-store", method: "GET" });
-      const ms = Math.round(performance.now() - t0);
-      const ok = r.ok;
-      if (el) el.innerHTML = `<span class="status-dot ${ok ? "" : "status-dot-red"}"></span><span>${ok ? "up" : `${r.status}`} · ${ms}ms</span>`;
-    } catch {
-      if (el) el.innerHTML = `<span class="status-dot status-dot-red"></span><span>down</span>`;
-    }
-  });
-  await Promise.all(checks);
-  if (upd) upd.textContent = `last check · ${new Date().toLocaleTimeString()}`;
 }
 
 // =========================================================================
@@ -820,7 +674,6 @@ async function tick() {
   renderCascadeTable(s);
   renderVaultCharts(s);
   renderContracts(s);
-  refreshDemoWalletInfo();
   if (!firstLoad && s.totals.cascadeEvents > prevReceipts) {
     toast(`+${s.totals.cascadeEvents - prevReceipts} new cascade receipt${s.totals.cascadeEvents - prevReceipts > 1 ? "s" : ""}`, { kind: "info" });
   }
@@ -829,15 +682,11 @@ async function tick() {
 }
 
 wallet.init();
-wallet.onChange(() => { renderWalletChip(); refreshDemoWalletInfo(); });
+wallet.onChange(renderWalletChip);
 initTabs();
-initFAQ();
 initModal();
 initMobileDrawer();
 initHeroCanvas();
-initDemoWidget();
-renderStatus();
-setInterval(renderStatus, 60_000);
 tick();
 
 setInterval(() => {
