@@ -1302,6 +1302,66 @@ input:focus {
 }
 .cascade-pagination .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* Quickstart strip --------------------------------------------------- */
+.quickstart {
+  background: var(--grad-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+}
+.quickstart.collapsed .quickstart-steps { display: none; }
+.quickstart.collapsed { padding: 10px 20px; }
+.quickstart-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+.quickstart.collapsed .quickstart-head { margin-bottom: 0; }
+.quickstart-title {
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+.quickstart-dismiss {
+  background: transparent; border: 0; color: var(--text-3);
+  cursor: pointer; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.quickstart-dismiss:hover { color: var(--text-1); }
+.quickstart-steps {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+@media (max-width: 900px) { .quickstart-steps { grid-template-columns: 1fr; } }
+
+.qs-step {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 12px; align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  transition: opacity 200ms, border-color 200ms;
+}
+.qs-step.done { border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.04); }
+.qs-step.locked { opacity: 0.55; }
+.qs-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-3); border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  color: var(--text-2);
+}
+.qs-step.done .qs-num {
+  background: var(--accent); color: #050509;
+  border-color: var(--accent);
+}
+.qs-step.done .qs-num::after { content: ""; }
+.qs-step.done .qs-num-text { display: none; }
+.qs-title { font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 2px; }
+.qs-sub { font-size: 11px; color: var(--text-3); line-height: 1.45; }
+.qs-action { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.qs-step.done .qs-action { display: none; }
+.qs-step.done .qs-sub { color: var(--accent); font-weight: 500; }
+
 /* Chain badge + wrong-chain chip ------------------------------------- */
 .chain-badge {
   display: inline-flex; align-items: center; gap: 6px;

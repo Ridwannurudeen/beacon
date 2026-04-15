@@ -14,6 +14,7 @@
 import uPlot from "uplot";
 import * as wallet from "./wallet.js";
 import { toast } from "./toast.js";
+import { getBusdBalance, mintBusd } from "./x402-browser.js";
 
 interface UpstreamEvent {
   index: number; slug: string; author: string; amount: string;
@@ -526,6 +527,80 @@ function renderWalletChip() {
 }
 
 // =========================================================================
+// Quickstart strip
+// =========================================================================
+
+let qsBusdBalance = 0n;
+
+async function refreshQsBalance() {
+  const state = wallet.getState();
+  if (!state.address || !lastState?.contracts.bUSD) { qsBusdBalance = 0n; return; }
+  try { qsBusdBalance = await getBusdBalance(state.address, lastState.contracts.bUSD); }
+  catch { qsBusdBalance = 0n; }
+}
+
+function renderQuickstart() {
+  const card = document.getElementById("quickstart-card");
+  if (!card) return;
+  const state = wallet.getState();
+  const s1 = card.querySelector<HTMLElement>('[data-step="1"]');
+  const s2 = card.querySelector<HTMLElement>('[data-step="2"]');
+  const s3 = card.querySelector<HTMLElement>('[data-step="3"]');
+  const sub1 = document.getElementById("qs1-sub");
+  const sub2 = document.getElementById("qs2-sub");
+
+  const connected = !!state.address;
+  const hasBalance = qsBusdBalance > 0n;
+
+  if (s1) s1.classList.toggle("done", connected);
+  if (sub1 && connected) sub1.textContent = `✓ Connected as ${wallet.shortAddr(state.address!)}`;
+
+  if (s2) {
+    s2.classList.toggle("done", connected && hasBalance);
+    s2.classList.toggle("locked", !connected);
+  }
+  if (sub2) {
+    if (connected && hasBalance) sub2.textContent = `✓ ${(Number(qsBusdBalance) / 1_000_000).toFixed(4)} bUSD ready`;
+    else if (connected) sub2.textContent = "Click Mint (needs a tiny bit of OKB gas from the faucet).";
+    else sub2.textContent = "Testnet OKB for gas, open-mint bUSD for settlement.";
+  }
+
+  if (s3) {
+    s3.classList.toggle("locked", !connected || !hasBalance);
+  }
+
+  if (connected && hasBalance) card.classList.add("all-done");
+}
+
+function initQuickstart() {
+  document.getElementById("qs-connect")?.addEventListener("click", async () => {
+    const a = await wallet.connectWallet();
+    if (a) toast(`Connected ${wallet.shortAddr(a)}`, { kind: "success" });
+  });
+  document.getElementById("qs-mint")?.addEventListener("click", async () => {
+    const state = wallet.getState();
+    if (!state.address) { toast("Connect a wallet first", { kind: "error" }); return; }
+    if (!lastState?.contracts.bUSD) { toast("Registry not loaded", { kind: "error" }); return; }
+    const dismiss = toast("Minting 1 bUSD…", { kind: "pending" });
+    try {
+      const tx = await mintBusd(state.address, 1_000_000n, lastState.contracts.bUSD);
+      dismiss();
+      toast("1 bUSD minted", { kind: "success", action: { label: "view tx", href: `${lastState.chain.explorer}/tx/${tx}` } });
+      setTimeout(async () => { await refreshQsBalance(); renderQuickstart(); }, 4000);
+    } catch (e) {
+      dismiss();
+      toast(`Mint failed: ${(e as Error).message}`, { kind: "error" });
+    }
+  });
+  document.getElementById("quickstart-dismiss")?.addEventListener("click", () => {
+    const card = document.getElementById("quickstart-card");
+    if (!card) return;
+    const collapsed = card.classList.toggle("collapsed");
+    (document.getElementById("quickstart-dismiss") as HTMLButtonElement).textContent = collapsed ? "Show ↓" : "Hide ↑";
+  });
+}
+
+// =========================================================================
 // Hero canvas (with IntersectionObserver pause)
 // =========================================================================
 
@@ -674,6 +749,8 @@ async function tick() {
   renderCascadeTable(s);
   renderVaultCharts(s);
   renderContracts(s);
+  await refreshQsBalance();
+  renderQuickstart();
   if (!firstLoad && s.totals.cascadeEvents > prevReceipts) {
     toast(`+${s.totals.cascadeEvents - prevReceipts} new cascade receipt${s.totals.cascadeEvents - prevReceipts > 1 ? "s" : ""}`, { kind: "info" });
   }
@@ -682,11 +759,17 @@ async function tick() {
 }
 
 wallet.init();
-wallet.onChange(renderWalletChip);
+wallet.onChange(async () => {
+  renderWalletChip();
+  await refreshQsBalance();
+  renderQuickstart();
+});
 initTabs();
 initModal();
 initMobileDrawer();
 initHeroCanvas();
+initQuickstart();
+renderQuickstart();
 tick();
 
 setInterval(() => {
