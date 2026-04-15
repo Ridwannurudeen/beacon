@@ -216,7 +216,7 @@ export function renderWalletChip(slotId: string, opts: { onToast?: (msg: string,
       <span class="wallet-chip-avatar"></span>
       <span class="wallet-chip-addr">${shortAddr(state.address)}</span>
       ${wrongChain ? `<button class="wallet-chip-switch" data-wallet-switch>Switch to X Layer Testnet</button>` : `<span class="wallet-chip-chain">X Layer Testnet</span>`}
-      <button class="wallet-chip-disconnect" data-wallet-disconnect aria-label="Disconnect">×</button>
+      <button class="wallet-chip-disconnect" data-wallet-disconnect title="Disconnect wallet">Disconnect</button>
     </span>`;
   slot.querySelector("[data-wallet-switch]")?.addEventListener("click", async () => {
     try {

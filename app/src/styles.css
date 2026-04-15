@@ -1106,10 +1106,11 @@ input:focus {
   background: var(--grad-accent); box-shadow: 0 0 8px var(--accent-glow);
 }
 .wallet-chip-disconnect {
-  background: transparent; border: 0; color: var(--text-3);
-  cursor: pointer; padding: 0 2px; font-size: 16px; line-height: 1;
+  background: transparent; border: 1px solid var(--border-1); border-radius: 6px;
+  color: var(--text-2); cursor: pointer; padding: 2px 8px; font-size: 11px;
+  line-height: 1.3; font-weight: 500; margin-left: 4px;
 }
-.wallet-chip-disconnect:hover { color: var(--neg); }
+.wallet-chip-disconnect:hover { color: var(--neg); border-color: var(--neg); }
 
 .toast-container {
   position: fixed; bottom: 20px; right: 20px;
