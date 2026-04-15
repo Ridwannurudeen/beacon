@@ -6,7 +6,7 @@ import { toast } from "./toast.js";
 import { payAndCall, getBusdBalance, mintBusd, type BUSDDescriptor } from "./x402-browser.js";
 
 const ATLAS_URL = "/atlas.json";
-const SAFE_YIELD_URL = "https://safe-yield.gudman.xyz/signal/safe-yield";
+const SAFE_YIELD_URL = "https://safe-yield.gudman.xyz/signal";
 
 interface Atlas {
   chain: { id: number; explorer: string };
@@ -57,7 +57,7 @@ function initDemoWidget() {
         address: atlas.token.address, name: atlas.token.name,
         version: atlas.token.version, symbol: atlas.token.symbol, decimals: atlas.token.decimals,
       };
-      const res = await payAndCall(SAFE_YIELD_URL, state.address, desc, atlas.chain.id);
+      const res = await payAndCall(`${SAFE_YIELD_URL}?asset=${atlas.token.address}`, state.address, desc, atlas.chain.id);
       dismiss();
       const exp = atlas.chain.explorer;
       const ups = res.cascadeReceipt?.upstreams ?? [];
