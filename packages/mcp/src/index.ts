@@ -37,6 +37,7 @@ dotenv.config();
 
 const PRIVATE_KEY = (process.env.AGENT_PRIVATE_KEY ?? process.env.PRIVATE_KEY ?? "") as `0x${string}`;
 const REGISTRY_URL = process.env.BEACON_REGISTRY_URL ?? "https://registry.beacon.fyi/signals.json";
+const ATLAS_URL = process.env.BEACON_ATLAS_URL ?? "https://beacon.gudman.xyz/atlas.json";
 const SSE_MODE = process.argv.includes("--sse");
 const SSE_PORT = Number(process.env.MCP_PORT ?? 4100);
 
@@ -65,6 +66,40 @@ async function loadRegistry(): Promise<RegistryEntry[]> {
   const res = await fetch(REGISTRY_URL);
   if (!res.ok) throw new Error(`registry fetch failed: ${res.status}`);
   return (await res.json()) as RegistryEntry[];
+}
+
+interface AtlasSnapshot {
+  chain: { id: number; name: string; explorer: string };
+  contracts: Record<string, string>;
+  vault: { tvl: string; totalSupply: string; pricePerShare: string; paused: boolean };
+  strategies: Array<{
+    address: string;
+    name: string;
+    strategy: string;
+    equity: string;
+    currentDebt: string;
+    cumulativeProfit: string;
+    cumulativeLoss: string;
+    pnlPct: number;
+  }>;
+  totals: { cascadeEvents: number; totalUpstreamPayments: number };
+  cascade: Array<{
+    receiptId: string;
+    composite: string;
+    buyer: string;
+    buyerAmount: string;
+    buyerSettlementTx: string;
+    anchorTx: string;
+    block: number;
+    upstreams: Array<{ slug: string; author: string; amount: string; settlementTx: string }>;
+  }>;
+  updatedAt: string;
+}
+
+async function loadAtlas(): Promise<AtlasSnapshot> {
+  const res = await fetch(ATLAS_URL, { cache: "no-store" } as RequestInit);
+  if (!res.ok) throw new Error(`atlas fetch failed: ${res.status}`);
+  return (await res.json()) as AtlasSnapshot;
 }
 
 const server = new Server(
@@ -99,10 +134,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object",
         properties: {
-          slug: {
-            type: "string",
-            description: "Signal slug (e.g. 'wallet-risk', 'liquidity-depth', 'safe-yield')",
-          },
+          slug: { type: "string", description: "Signal slug (e.g. 'wallet-risk', 'liquidity-depth', 'safe-yield')" },
           query: {
             type: "object",
             description: "Query parameters to pass to the signal (e.g. { address: '0x...' })",
@@ -110,6 +142,36 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
         required: ["slug"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "atlas_state",
+      description:
+        "Snapshot of Atlas V2 vault state on X Layer: TVL, NAV/share, strategy equities, realized P&L, and cascade receipt counts.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    },
+    {
+      name: "list_cascade_receipts",
+      description:
+        "Return the N most recent EIP-712 signed cascade receipts anchored on-chain via CascadeLedger. Each entry includes the buyer settlement tx, composite signature, and every upstream payment.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: { type: "number", description: "Max receipts to return (default 10, max 50)" },
+        },
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "get_cascade_receipt",
+      description: "Fetch one cascade receipt by receiptId, including on-chain anchor tx and every upstream payment.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          receiptId: { type: "string", description: "The receiptId (keccak256 of the signed struct)" },
+        },
+        required: ["receiptId"],
         additionalProperties: false,
       },
     },
@@ -181,6 +243,70 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     };
   }
 
+  if (name === "atlas_state") {
+    const a = await loadAtlas();
+    const tvl = Number(BigInt(a.vault.tvl)) / 1_000_000;
+    const supply = Number(BigInt(a.vault.totalSupply)) / 1_000_000;
+    const pps = Number(BigInt(a.vault.pricePerShare)) / 1_000_000;
+    const summary = {
+      chain: a.chain,
+      vault: {
+        tvl: `${tvl.toFixed(2)} bUSD`,
+        totalSupply: `${supply.toFixed(2)} ATLS`,
+        pricePerShare: pps.toFixed(6),
+        paused: a.vault.paused,
+      },
+      strategies: a.strategies.map((s) => ({
+        name: s.name,
+        strategy: s.strategy,
+        address: s.address,
+        equity: (Number(BigInt(s.equity)) / 1_000_000).toFixed(2) + " bUSD",
+        debt: (Number(BigInt(s.currentDebt)) / 1_000_000).toFixed(2) + " bUSD",
+        realizedProfit: (Number(BigInt(s.cumulativeProfit)) / 1_000_000).toFixed(2) + " bUSD",
+        realizedLoss: (Number(BigInt(s.cumulativeLoss)) / 1_000_000).toFixed(2) + " bUSD",
+        pnlPct: s.pnlPct,
+      })),
+      totals: a.totals,
+      contracts: a.contracts,
+      updatedAt: a.updatedAt,
+    };
+    return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
+  }
+
+  if (name === "list_cascade_receipts") {
+    const { limit } = z.object({ limit: z.number().optional() }).parse(args);
+    const a = await loadAtlas();
+    const n = Math.min(Math.max(limit ?? 10, 1), 50);
+    const rows = a.cascade
+      .slice()
+      .sort((x, y) => y.block - x.block)
+      .slice(0, n)
+      .map((c) => ({
+        receiptId: c.receiptId,
+        composite: c.composite,
+        buyer: c.buyer,
+        buyerAmountBUsd: (Number(BigInt(c.buyerAmount)) / 1_000_000).toFixed(4),
+        buyerSettlementTx: c.buyerSettlementTx,
+        anchorTx: c.anchorTx,
+        block: c.block,
+        upstreams: c.upstreams.map((u) => ({
+          slug: u.slug,
+          author: u.author,
+          amountBUsd: (Number(BigInt(u.amount)) / 1_000_000).toFixed(4),
+          settlementTx: u.settlementTx,
+        })),
+      }));
+    return { content: [{ type: "text", text: JSON.stringify(rows, null, 2) }] };
+  }
+
+  if (name === "get_cascade_receipt") {
+    const { receiptId } = z.object({ receiptId: z.string() }).parse(args);
+    const a = await loadAtlas();
+    const c = a.cascade.find((r) => r.receiptId.toLowerCase() === receiptId.toLowerCase());
+    if (!c) throw new Error(`receiptId not found: ${receiptId}`);
+    return { content: [{ type: "text", text: JSON.stringify(c, null, 2) }] };
+  }
+
   throw new Error(`unknown tool: ${name}`);
 });
 
@@ -192,6 +318,12 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       description: "Live directory of all published Beacon signals on X Layer.",
       mimeType: "application/json",
     },
+    {
+      uri: "beacon://atlas",
+      name: "Atlas Vault State",
+      description: "Live Atlas V2 vault snapshot: TVL, NAV, strategies, cascade receipts.",
+      mimeType: "application/json",
+    },
   ],
 }));
 
@@ -200,11 +332,15 @@ server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
     const registry = await loadRegistry();
     return {
       contents: [
-        {
-          uri: req.params.uri,
-          mimeType: "application/json",
-          text: JSON.stringify(registry, null, 2),
-        },
+        { uri: req.params.uri, mimeType: "application/json", text: JSON.stringify(registry, null, 2) },
+      ],
+    };
+  }
+  if (req.params.uri === "beacon://atlas") {
+    const atlas = await loadAtlas();
+    return {
+      contents: [
+        { uri: req.params.uri, mimeType: "application/json", text: JSON.stringify(atlas, null, 2) },
       ],
     };
   }
@@ -225,6 +361,10 @@ async function main() {
           return;
         }
         await transport.handlePostMessage(req, res);
+      } else if (req.url === "/health") {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ ok: true, service: "beacon-mcp", tools: 6, resources: 2 }));
       } else {
         res.statusCode = 404;
         res.end();

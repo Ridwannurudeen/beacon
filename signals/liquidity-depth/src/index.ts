@@ -16,9 +16,19 @@ import {
   xLayerTestnetWalletClient,
   type SettlementToken,
 } from "@beacon/sdk";
+import { OnchainosClient } from "@beacon/okx-client";
 import * as dotenv from "dotenv";
 
 dotenv.config();
+
+const okx = process.env.ONCHAINOS_API_KEY
+  ? new OnchainosClient({
+      apiKey: process.env.ONCHAINOS_API_KEY,
+      secretKey: process.env.ONCHAINOS_SECRET_KEY ?? "",
+      passphrase: process.env.ONCHAINOS_PASSPHRASE ?? "",
+      baseUrl: process.env.OKX_BASE_URL,
+    })
+  : null;
 
 /**
  * liquidity-depth — Beacon base signal. Reads Uniswap v3 pool state on X Layer.
@@ -88,6 +98,12 @@ interface LiquidityOutput {
   price: { token0PerToken1: string };
   blockNumber: string;
   source: "uniswap-v3" | "mock";
+  okxRoute?: {
+    estimatedOut: string;
+    slippageBps: number;
+    liquiditySources: string[];
+    note: string;
+  };
 }
 
 async function readPool(pool: Address): Promise<LiquidityOutput> {
@@ -158,19 +174,46 @@ async function findAndReadPool(
   tokenB: Address,
   fee: number
 ): Promise<LiquidityOutput> {
+  let out: LiquidityOutput;
   if (!isAddress(FACTORY)) {
     if (!MOCK_FALLBACK) throw new Error("UNISWAP_V3_FACTORY not configured");
-    return mockLiquidity(tokenA, tokenB, fee);
+    out = await mockLiquidity(tokenA, tokenB, fee);
+  } else {
+    const pool = (await publicClient.readContract({
+      address: FACTORY, abi: FACTORY_ABI, functionName: "getPool",
+      args: [tokenA, tokenB, fee],
+    })) as Address;
+    if (pool === "0x0000000000000000000000000000000000000000") {
+      if (!MOCK_FALLBACK) throw new Error("pool not found");
+      out = await mockLiquidity(tokenA, tokenB, fee);
+    } else {
+      out = await readPool(pool);
+    }
   }
-  const pool = (await publicClient.readContract({
-    address: FACTORY, abi: FACTORY_ABI, functionName: "getPool",
-    args: [tokenA, tokenB, fee],
-  })) as Address;
-  if (pool === "0x0000000000000000000000000000000000000000") {
-    if (!MOCK_FALLBACK) throw new Error("pool not found");
-    return mockLiquidity(tokenA, tokenB, fee);
+
+  // OKX DEX aggregator quote — "Uniswap AI / Swap" skill. Returns expected
+  // out-amount + slippage for a 1-token-unit trade sourced across all X Layer
+  // DEXes (Uniswap v3 is one of the routes). Mainnet only.
+  if (okx && CHAIN_ID === 196) {
+    try {
+      const dec0 = 18; // amountIn is 1 whole token — safe default
+      const q = await okx.getQuote({
+        fromToken: tokenA,
+        toToken: tokenB,
+        amount: (10n ** BigInt(dec0)).toString(),
+      });
+      out.okxRoute = {
+        estimatedOut: q.toAmount,
+        slippageBps: q.estimatedSlippageBps,
+        liquiditySources: q.liquiditySources,
+        note: "Priced via OKX DEX aggregator (Onchain OS skill) — best route across all X Layer DEXes.",
+      };
+    } catch (e) {
+      out.okxRoute = { estimatedOut: "0", slippageBps: 0, liquiditySources: [], note: `quote err: ${(e as Error).message.slice(0, 60)}` };
+    }
   }
-  return readPool(pool);
+
+  return out;
 }
 
 const signal = defineSignal({
@@ -200,8 +243,9 @@ const signal = defineSignal({
 
 const app = new Hono();
 app.get("/", (c: Context) =>
-  c.json({ service: "beacon:liquidity-depth", endpoint: "/signal", meta: "/signal/meta" })
+  c.json({ service: "beacon:liquidity-depth", endpoint: "/signal", meta: "/signal/meta", okxSkill: okx ? "DEX aggregator (enabled)" : "DEX aggregator (disabled)" })
 );
+app.get("/health", (c: Context) => c.json({ ok: true, chain: CHAIN_ID, okxSkill: !!okx }));
 app.route("/signal", signal.app);
 
 serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {

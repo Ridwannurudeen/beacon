@@ -17,9 +17,19 @@ import {
   xLayerTestnetWalletClient,
   type SettlementToken,
 } from "@beacon/sdk";
+import { OnchainosClient } from "@beacon/okx-client";
 import * as dotenv from "dotenv";
 
 dotenv.config();
+
+const okx = process.env.ONCHAINOS_API_KEY
+  ? new OnchainosClient({
+      apiKey: process.env.ONCHAINOS_API_KEY,
+      secretKey: process.env.ONCHAINOS_SECRET_KEY ?? "",
+      passphrase: process.env.ONCHAINOS_PASSPHRASE ?? "",
+      baseUrl: process.env.OKX_BASE_URL,
+    })
+  : null;
 
 /**
  * yield-score — Beacon base signal. Reads Aave v3 PoolDataProvider on X Layer
@@ -85,6 +95,12 @@ interface YieldOutput {
     utilizationPct: string;
   }>;
   bestSupply: { venue: string; apyPct: string } | null;
+  marketContext?: {
+    priceUsd: number;
+    recentChangePct: number;
+    candles: number;
+    note: string;
+  };
   blockNumber: string;
   source: "aave-v3" | "mock";
 }
@@ -133,10 +149,34 @@ async function scoreYield(asset: Address): Promise<YieldOutput> {
     (a, b) => Number(b.supplyApyPct) - Number(a.supplyApyPct)
   )[0];
 
+  // OKX Market Data skill — USD price + recent candles. Adds market-regime
+  // context to the raw yield numbers. Mainnet only.
+  let marketContext: YieldOutput["marketContext"];
+  if (okx && CHAIN_ID === 196) {
+    try {
+      const [priceInfo, candles] = await Promise.all([
+        okx.getMarketPriceUsd(asset).catch(() => null),
+        okx.getRecentCandles(asset, "1H", 4).catch(() => [] as Array<{ open: number; close: number; ts: number }>),
+      ]);
+      const first = candles[0]?.open ?? 0;
+      const last = candles[candles.length - 1]?.close ?? 0;
+      const change = first > 0 ? ((last - first) / first) * 100 : 0;
+      marketContext = {
+        priceUsd: priceInfo?.price ?? 0,
+        recentChangePct: Number(change.toFixed(2)),
+        candles: candles.length,
+        note: "Priced via OKX DEX Market Data skill (Onchain OS).",
+      };
+    } catch (e) {
+      marketContext = { priceUsd: 0, recentChangePct: 0, candles: 0, note: `okx err: ${(e as Error).message.slice(0, 60)}` };
+    }
+  }
+
   const block = await publicClient.getBlockNumber();
   return {
     asset, venues, source,
     bestSupply: bestSupply ? { venue: bestSupply.venue, apyPct: bestSupply.supplyApyPct } : null,
+    ...(marketContext ? { marketContext } : {}),
     blockNumber: block.toString(),
   };
 }
@@ -161,8 +201,9 @@ const signal = defineSignal({
 
 const app = new Hono();
 app.get("/", (c: Context) =>
-  c.json({ service: "beacon:yield-score", endpoint: "/signal", meta: "/signal/meta" })
+  c.json({ service: "beacon:yield-score", endpoint: "/signal", meta: "/signal/meta", okxSkill: okx ? "Market Data (enabled)" : "Market Data (disabled)" })
 );
+app.get("/health", (c: Context) => c.json({ ok: true, chain: CHAIN_ID, okxSkill: !!okx }));
 app.route("/signal", signal.app);
 
 serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {

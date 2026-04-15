@@ -10,6 +10,7 @@ import {
   xLayerWalletClient,
   type SettlementToken,
 } from "@beacon/sdk";
+import { OnchainosClient } from "@beacon/okx-client";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -56,6 +57,19 @@ const SANCTIONED = new Set<string>([
   "0x722122df12d4e14e13ac3b6895a86e84145b6967".toLowerCase(),
 ]);
 
+/**
+ * OKX Onchain OS Wallet skill — portfolio signal.
+ * Initialized lazily so the signal still runs without OKX creds (testnet dev).
+ */
+const okx = process.env.ONCHAINOS_API_KEY
+  ? new OnchainosClient({
+      apiKey: process.env.ONCHAINOS_API_KEY,
+      secretKey: process.env.ONCHAINOS_SECRET_KEY ?? "",
+      passphrase: process.env.ONCHAINOS_PASSPHRASE ?? "",
+      baseUrl: process.env.OKX_BASE_URL,
+    })
+  : null;
+
 interface RiskOutput {
   address: Address;
   score: number;
@@ -92,6 +106,29 @@ async function scoreWallet(address: Address): Promise<RiskOutput> {
     factors.push({ name: "sanctioned", weight: 60, detail: "on internal sanction list" });
   }
 
+  // OKX Wallet skill — portfolio-value risk factor (mainnet only; silently skipped on testnet).
+  if (okx && CHAIN_ID === 196) {
+    try {
+      const portfolio = await okx.getPortfolio(address);
+      if (portfolio.totalValueUsd > 100_000) {
+        score += 5;
+        factors.push({
+          name: "high_value_wallet",
+          weight: 5,
+          detail: `$${portfolio.totalValueUsd.toFixed(0)} portfolio · ${portfolio.balances.length} tokens (via OKX Wallet skill)`,
+        });
+      } else if (portfolio.totalValueUsd > 0) {
+        factors.push({
+          name: "okx_portfolio",
+          weight: 0,
+          detail: `$${portfolio.totalValueUsd.toFixed(2)} portfolio · ${portfolio.balances.length} tokens`,
+        });
+      }
+    } catch (e) {
+      factors.push({ name: "okx_portfolio_err", weight: 0, detail: (e as Error).message.slice(0, 80) });
+    }
+  }
+
   score = Math.min(100, score);
   const band: RiskOutput["band"] = score < 25 ? "low" : score < 60 ? "medium" : "high";
 
@@ -125,8 +162,10 @@ app.get("/", (c: Context) =>
     endpoint: "/signal",
     meta: "/signal/meta",
     chain: { id: CHAIN_ID, name: chain.name },
+    okxSkill: okx ? "Wallet (enabled)" : "Wallet (disabled — set ONCHAINOS_API_KEY)",
   })
 );
+app.get("/health", (c: Context) => c.json({ ok: true, chain: CHAIN_ID, okxSkill: !!okx }));
 app.route("/signal", signal.app);
 
 serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {

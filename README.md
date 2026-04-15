@@ -9,7 +9,40 @@ Submitted to OKX **Build X Hackathon** (Apr 1–15, 2026):
 - X Layer Arena → **Atlas V2**
 - Skills Arena → **@beacon/sdk**
 
-Live: **https://beacon.gudman.xyz** · Repo: **https://github.com/Ridwannurudeen/beacon**
+Live: **https://beacon.gudman.xyz** · Docs: **https://beacon.gudman.xyz/docs.html** · Repo: **https://github.com/Ridwannurudeen/beacon**
+
+---
+
+## Onchain OS & Uniswap skills used (X Layer mainnet, chainId 196)
+
+Every integration below runs against OKX's live mainnet skill endpoints with HMAC-SHA256 signed requests. The shared client is `packages/okx-client/src/index.ts` — mirrored from the production-hardened PreflightX implementation.
+
+| Skill | Endpoint | Where it's used | Code |
+|---|---|---|---|
+| **DEX Aggregator Quote** (Onchain OS) | `GET /api/v5/dex/aggregator/quote` | `liquidity-depth` signal returns a real OKX-aggregated route with slippage + liquidity sources alongside raw Uniswap v3 pool math | [`packages/okx-client/src/index.ts#getQuote`](packages/okx-client/src/index.ts) · [`signals/liquidity-depth/src/index.ts`](signals/liquidity-depth/src/index.ts) |
+| **Market Data — Price** (Onchain OS) | `GET /api/v5/dex/market/price` | `yield-score` signal enriches APY output with USD spot price | [`packages/okx-client/src/index.ts#getMarketPriceUsd`](packages/okx-client/src/index.ts) · [`signals/yield-score/src/index.ts`](signals/yield-score/src/index.ts) |
+| **Market Data — Candles** (Onchain OS) | `GET /api/v5/dex/market/candles` | `yield-score` signal computes recent-change % from 4×1H candles for market-regime context | [`signals/yield-score/src/index.ts`](signals/yield-score/src/index.ts) |
+| **Wallet — Portfolio Value** (Onchain OS) | `GET /api/v5/wallet/asset/total-value` + `all-token-balances` | `wallet-risk` signal adds a "high-value wallet" risk factor when OKX reports portfolio > $100K | [`packages/okx-client/src/index.ts#getPortfolio`](packages/okx-client/src/index.ts) · [`signals/wallet-risk/src/index.ts`](signals/wallet-risk/src/index.ts) |
+| **Onchain Gateway — Simulate Tx** (Onchain OS) | `POST /api/v5/dex/aggregator/onchain-gateway/simulate-tx` | Pre-flight check before strategies submit trade txs (prevents failed txs) | [`packages/okx-client/src/index.ts#simulateTx`](packages/okx-client/src/index.ts) |
+| **Onchain Gateway — Gas Price** (Onchain OS) | `GET /api/v5/dex/aggregator/onchain-gateway/gas-price` | Agent-runner reads current X Layer gas price before submitting strategy txs | [`packages/okx-client/src/index.ts#getGasPriceWei`](packages/okx-client/src/index.ts) |
+| **Uniswap v3 (direct pool reads)** | `factory.getPool` · `pool.slot0` · `pool.liquidity` | `liquidity-depth` signal reads live pool state via viem, hashed with OKX aggregator quote above | [`signals/liquidity-depth/src/index.ts`](signals/liquidity-depth/src/index.ts) |
+
+Six Onchain OS core modules in productive use + Uniswap v3 pool reads. All calls are HMAC-authenticated (`OK-ACCESS-KEY` / `OK-ACCESS-SIGN` / `OK-ACCESS-TIMESTAMP` / `OK-ACCESS-PASSPHRASE`).
+
+---
+
+## Agentic Wallet identity
+
+Atlas V2 operates as four agents with four Agentic Wallets on X Layer mainnet. All are provisioned via the Onchain OS API (same flow as documented in [`packages/okx-client`](packages/okx-client/)):
+
+| Agent | Role |
+|---|---|
+| **Atlas deployer** | Deploys contracts, seeds the vault, calls `harvest()`, emergency-pause |
+| **Fear strategy** | Momentum trader — rides 30-bps moves |
+| **Greed strategy** | Mean-reverter — fades 50-bps deviations |
+| **Skeptic strategy** | Intelligence-driven — buys `safe-yield` composite before every trade |
+
+Addresses are written to [`contracts/deployments/xlayerMainnet.atlasV2.json`](contracts/deployments/) once mainnet deploy completes. Mapping is also emitted by the registry builder into [`app/public/atlas.json`](app/public/).
 
 ---
 
@@ -72,6 +105,12 @@ beacon/
 ├── app/                            # Vite dashboard — V2-native
 └── deploy/                         # systemd + nginx + deploy scripts (VPS)
 ```
+
+## Live V2 deployment (X Layer mainnet, chainId 196)
+
+_Being deployed alongside submission — see `contracts/deployments/xlayerMainnet.atlasV2.json` for canonical addresses once the tx confirms._
+
+Uses real **USDT0** for settlement. Shared Onchain OS skill credentials → see env setup below.
 
 ## Live V2 deployment (X Layer testnet, chainId 1952)
 
@@ -152,9 +191,42 @@ To deploy your own instance, see `docs/DEPLOYMENT_VPS.md`.
 
 ### Skills Arena — **@beacon/sdk**
 
-- **Best data analyst** — `liquidity-depth` signal reads Uniswap v3 pool math on X Layer
-- **Best Uniswap integration** — direct pool slot0 reads, not a price oracle
+- **Best data analyst** — `liquidity-depth` signal reads Uniswap v3 pool math on X Layer **and** pipes an OKX aggregator quote
+- **Best Uniswap integration** — direct pool slot0 reads **+** OKX DEX aggregator routing
 - **Most innovative** — `CascadeReceipt` as a novel EIP-712 primitive for provable upstream royalty flow
+
+## How this fits X Layer's ecosystem
+
+- **Consumer of X Layer liquidity.** Strategies swap on X Layer DEXes (Uniswap v3 reads; OKX aggregator quotes).
+- **Consumer of Onchain OS.** Six distinct core modules integrated across four signal servers + the agent-runner.
+- **Producer of Onchain OS-friendly primitives.** `@beacon/mcp` is an MCP server any agent client (Claude, Cursor, Windsurf, Moltbook) can connect to — exposing Beacon signals as MCP tools and Atlas state as MCP resources.
+- **On-chain proof, not API trust.** Every signal payment produces an on-chain settlement tx on X Layer; every cascade produces an EIP-712-signed receipt anchored via `CascadeLedger`.
+- **Demonstrates the "agentic commerce" thesis.** Skeptic is a live experiment: does paid intelligence beat free price action over many trades? The leaderboard on X Layer is the answer in public.
+
+## Environment
+
+```bash
+# contracts/.env (for deploys & testnet operations)
+PRIVATE_KEY=0x...               # X Layer deployer EOA
+XLAYER_RPC_URL=https://rpc.xlayer.tech
+XLAYER_TESTNET_RPC_URL=https://testrpc.xlayer.tech
+
+# signals/*/env (for real Onchain OS skill calls — mainnet only)
+ONCHAINOS_API_KEY=...
+ONCHAINOS_SECRET_KEY=...
+ONCHAINOS_PASSPHRASE=...
+OKX_BASE_URL=https://web3.okx.com
+
+# signals/*/env (existing)
+SIGNAL_PRIVATE_KEY=0x...
+PAY_TO=0x...
+TOKEN_ADDRESS=0x...             # USDT0 on mainnet; bUSD on testnet
+CHAIN_ID=196                    # or 1952 for testnet
+```
+
+## Team
+
+Solo builder for the hackathon. X: **@ridnurudeen**. Previous work: ShieldBot (BNB Chain security), HERMES (NousResearch), Nansen Divergence (Nansen CLI Hackathon), GenLayer projects.
 
 ## License
 
