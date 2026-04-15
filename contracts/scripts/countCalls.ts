@@ -6,9 +6,15 @@ async function main() {
   const reg = await ethers.getContractAt("SignalRegistry", dep.contracts.SignalRegistry);
   const filter = reg.filters.CallRecorded();
   const latest = await ethers.provider.getBlockNumber();
-  // Query in chunks
-  const from = 0;
-  const events = await reg.queryFilter(filter, from, latest);
+  const startBlock = Number(process.env.FROM_BLOCK ?? Math.max(0, latest - 200_000));
+  const CHUNK = 100;
+  const events: any[] = [];
+  for (let b = startBlock; b <= latest; b += CHUNK) {
+    const to = Math.min(b + CHUNK - 1, latest);
+    const chunk = await reg.queryFilter(filter, b, to);
+    if (chunk.length) events.push(...chunk);
+  }
+  console.log(`Scanned blocks ${startBlock}..${latest} (${latest - startBlock} blocks)`);
   console.log(`CallRecorded events total: ${events.length}`);
   const bySlug: Record<string, number> = {};
   for (const e of events) {
