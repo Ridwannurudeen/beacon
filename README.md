@@ -31,18 +31,29 @@ Six Onchain OS core modules in productive use + Uniswap v3 pool reads. All calls
 
 ---
 
-## Agentic Wallet identity
+## Project onchain identity
 
-Atlas V2 operates as four agents with four Agentic Wallets on X Layer mainnet. All are provisioned via the Onchain OS API (same flow as documented in [`packages/okx-client`](packages/okx-client/)):
+Atlas V2 declares 8 EOAs on X Layer as the project's onchain identity — each with a documented role. All are observable on-chain; addresses below match the `.keys/` manifest committed as deploy config.
 
-| Agent | Role |
-|---|---|
-| **Atlas deployer** | Deploys contracts, seeds the vault, calls `harvest()`, emergency-pause |
-| **Fear strategy** | Momentum trader — rides 30-bps moves |
-| **Greed strategy** | Mean-reverter — fades 50-bps deviations |
-| **Skeptic strategy** | Intelligence-driven — buys `safe-yield` composite before every trade |
+**Vault & strategy executors (agent-runner):**
 
-Addresses are written to [`contracts/deployments/xlayerMainnet.atlasV2.json`](contracts/deployments/) once mainnet deploy completes. Mapping is also emitted by the registry builder into [`app/public/atlas.json`](app/public/).
+| Role | X Layer address | Responsibility |
+|---|---|---|
+| **Atlas deployer** | `0x90329b94b178b45B4a9f25cfCF3979a2aea41542` | Deploys contracts, seeds vault, calls `harvest()`, emergency-pause |
+| **Fear executor** | `0x4fc3a3848fFc74f1B608A3961D27F07e4216ae4F` | Submits signed trade intents for the momentum strategy |
+| **Greed executor** | `0x411C0Ec26BE4628e79090f4e35f9D45079767785` | Submits signed trade intents for the mean-revert strategy |
+| **Skeptic executor** | `0x94f94a111cBBd5e33ec440A199542955a307bB8e` | Submits signed trade intents + pays for x402 signals + anchors receipts |
+
+**Beacon signal authors (paid endpoints):**
+
+| Signal | Author address | Paid for | Uses Onchain OS skill |
+|---|---|---|---|
+| `wallet-risk` | `0x1e9921B1c6ca20511d9Fc1ADb344882c59002bD6` | Wallet risk score | **Wallet** — portfolio snapshot |
+| `liquidity-depth` | `0x75D51494005Aa71e0170DCE8086d7CaEC07B7906` | Uniswap v3 pool state | **DEX Aggregator** — cross-DEX quote |
+| `yield-score` | `0x20C7Ad3561993FA5777bFF6cd532697d1ca994b0` | Lending venue APYs | **Market Data** — price + candles |
+| `safe-yield` (composite) | `0x7535ab44553FE7D0B11aa6ac8CBc432c81Cb998D` | Composite score + signs `CascadeReceipt` | Composes all three above |
+
+Each signal author receives 33% of the `safe-yield` cascade payment on every Skeptic trade — provable via the on-chain `CascadeLedger` + EIP-712 signed receipt returned in the `X-Cascade-Receipt` header. See `cascade` array in [atlas.json](https://beacon.gudman.xyz/atlas.json).
 
 ---
 
