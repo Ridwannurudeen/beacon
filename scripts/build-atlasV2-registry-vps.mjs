@@ -12,11 +12,23 @@ import { resolve } from "node:path";
 import { createPublicClient, http, parseAbi, parseAbiItem } from "viem";
 
 const ROOT = resolve(process.cwd());
-const v2 = JSON.parse(readFileSync(resolve(ROOT, "contracts/deployments/xlayerTestnet.atlasV2.json"), "utf-8"));
-const tokenDep = JSON.parse(readFileSync(resolve(ROOT, "contracts/deployments/xlayerTestnet.testtoken.json"), "utf-8"));
+const NETWORK = process.env.BEACON_NETWORK ?? "testnet"; // "testnet" | "mainnet"
+const isMainnet = NETWORK === "mainnet";
+const deployFile = isMainnet ? "xlayer.atlasV2.json" : "xlayerTestnet.atlasV2.json";
+const tokenFile = isMainnet ? "xlayer.atlasV2.json" : "xlayerTestnet.testtoken.json"; // mainnet token info inline in deploy file
+const rpcUrl = isMainnet ? "https://rpc.xlayer.tech" : "https://testrpc.xlayer.tech";
+const explorer = isMainnet ? "https://www.oklink.com/xlayer" : "https://www.oklink.com/xlayer-test";
+const chainId = isMainnet ? 196 : 1952;
+const chainName = isMainnet ? "X Layer" : "X Layer Testnet";
+
+const v2 = JSON.parse(readFileSync(resolve(ROOT, "contracts/deployments", deployFile), "utf-8"));
+const tokenDep = isMainnet
+  ? { token: { address: v2.contracts.USDT0 ?? v2.contracts.USDT, symbol: "USDT", name: "Tether USD", version: "1", decimals: 6 } }
+  : JSON.parse(readFileSync(resolve(ROOT, "contracts/deployments", tokenFile), "utf-8"));
 const OUT = resolve(ROOT, "app/dist/atlas.json");
 
-const rpc = createPublicClient({ transport: http("https://testrpc.xlayer.tech") });
+const rpc = createPublicClient({ transport: http(rpcUrl) });
+console.log(`[registry] building for ${chainName} (chainId ${chainId})`);
 
 const VAULT_ABI = parseAbi([
   "function totalAssets() view returns (uint256)",
@@ -164,7 +176,7 @@ const cascade = settledLogs
 
 const out = {
   version: "v2",
-  chain: { id: 1952, name: "X Layer Testnet", explorer: "https://www.oklink.com/xlayer-test" },
+  chain: { id: chainId, name: chainName, explorer },
   contracts: v2.contracts,
   beacon: v2.beacon ?? {},
   vault: {

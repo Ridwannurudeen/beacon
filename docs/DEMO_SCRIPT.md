@@ -1,126 +1,97 @@
-# Atlas V2 — Demo Video Script (3:00)
+# Demo Video Script — Atlas V2 / X Layer Arena
 
-**The Cascade Receipt moment is at 1:45. The Adversarial-test moment is at 2:30. Nail both.**
+**Length target:** 2 minutes (max 3 per rules).
+**Tools:** OBS / ScreenStudio / Loom / QuickTime. Record at 1920×1080. Voice-over recommended but on-screen text captions also work.
 
-Record 1080p60 in OBS. Clean browser, incognito, no bookmarks bar.
+**Hosts shown on screen:**
+- `https://beacon.gudman.xyz` — main dashboard
+- `https://beacon.gudman.xyz/docs.html#demo` — live demo widget
+- `https://www.oklink.com/xlayer-test` — block explorer (we'll click through to a tx hash)
 
----
-
-## [0:00 – 0:25] Hook
-
-**Screen**: Atlas landing hero.
-
-**Voiceover**:
-> "AI agents need intelligence. Today they trust it blindly. Atlas is the first
-> product where every signal an agent buys ships with a cryptographically signed
-> CascadeReceipt proving exactly who got paid. Built as a production-grade AI
-> strategy vault on X Layer. Every dollar of NAV is provably backed by
-> vault-controlled custody."
-
-**Text overlay**: `ATLAS — on-chain AI strategy vault on X Layer`
+**Wallet ready:** Connected to X Layer testnet. Has ~1 bUSD or use the Mint button live.
 
 ---
 
-## [0:25 – 1:00] The vault's trust spine
+## Beat 1 — Hook (0:00–0:15) · 15s
 
-**Screen**: Scroll to the "V2 Architecture" section. Hover over each contract card.
+**Visual:** Full-bleed home page, hero loaded. Mouse hovers but doesn't click yet.
 
-**Voiceover**:
-> "Custody first. AtlasVaultV2 is ERC-4626-shaped. NAV counts vault idle plus
-> the equity of vault-controlled sub-wallets — and nothing else. An attacker
-> minting themselves bUSD cannot inflate share price. Tested adversarially."
->
-> "Each strategy — Fear, Greed, Skeptic — owns a SubWallet only the strategy
-> can invoke. Strategies themselves are vault-gated for capital flow. Off-chain
-> agents submit signed TradeIntents but never touch user capital."
+**Voice / caption:**
+> "Atlas is a multi-strategy vault on X Layer where AI strategies compete for capital. One of them — Skeptic — pays for intelligence over HTTP using x402 before every trade. Every payment produces an EIP-712 signed receipt anchored on-chain. This is a live demo on X Layer — every transaction you'll see is real."
 
-**Action**: Click the AtlasVaultV2 card → opens OKLink → show recent allocate() txs.
+**On-screen text overlay:** `Atlas V2 · X Layer · Live receipts every ~22 seconds`
 
 ---
 
-## [1:00 – 1:45] Skeptic buys intelligence
+## Beat 2 — The Vault dashboard (0:15–0:35) · 20s
 
-**Screen**: Open Skeptic's TradingStrategy on OKLink → show a submitAction tx.
+**Visual:** Click into Vault tab. TVL/PPS charts visible. Hover the strategies tab — show Greed +534%, Fear/Skeptic with realized losses.
 
-**Voiceover**:
-> "Watch Skeptic. Every tick it reads the AMM spot, its sub-wallet balance,
-> and — when the move is significant — queries Beacon's safe-yield composite.
-> That call costs 0.006 bUSD out of its book. Real drag on P&L. Intelligence
-> isn't free — the market decides whether it was worth it."
+**Voice:**
+> "Three strategies: Fear runs momentum, Greed runs mean-reversion, Skeptic queries paid signals before each trade. P&L is realized on-chain — every number here came from a contract call, no off-chain accounting."
 
-**Action**: Transition to Beacon's composite endpoint response in a tab.
+**On-screen highlight:** Tap each strategy card. Show realized profit/loss numbers (currently Fear −9.6K, Greed +55K, Skeptic −3.9K bUSD).
 
 ---
 
-## [1:45 – 2:30] **THE CASCADE RECEIPT MOMENT**
+## Beat 3 — The cascade receipt mechanic (0:35–1:10) · 35s · **THE WOW**
 
-**Screen**: Terminal.
+**Visual:** Click Receipts tab. Click any row to expand → show 3 upstream payments + composite hash + buyer settlement tx + anchor tx.
 
-```bash
-# Raw response
-curl -s https://safe-yield.gudman.xyz/signal?asset=0xe5A5A31145dc44EB3BD701897cd825b2443A6B76
+**Voice:**
+> "When Skeptic asks for the safe-yield signal, the server returns 402 Payment Required. Skeptic signs an EIP-3009 transfer for 0.006 bUSD, retries, and gets 200. The composite then forwards x402 payments to three upstream signal authors — wallet-risk, liquidity-depth, yield-score — and signs an EIP-712 receipt of the entire payment graph. Skeptic verifies the signature and anchors the receipt on the CascadeLedger contract. Five on-chain transactions per Skeptic tick. Cryptographically provable, no trust required."
 
-# Decode the signed receipt from the header
-curl -sD /tmp/h -o /tmp/b https://safe-yield.gudman.xyz/signal?asset=0xe5A5A31145dc44EB3BD701897cd825b2443A6B76
-grep -i x-cascade-receipt /tmp/h | cut -d: -f2- | base64 -d | jq .
+**On-screen action:** Click the "anchor tx" link → opens OKLink → show CascadeSettled + UpstreamPaid events on-chain.
+
+---
+
+## Beat 4 — Live x402 call (1:10–1:40) · 30s
+
+**Visual:** Navigate to `/docs.html#demo`. Wallet already connected. Click **Call signal →**. MetaMask popup appears (skip the popup in cuts). Response panel populates with the JSON output, composite hash, and 3 upstream tx links.
+
+**Voice:**
+> "You don't have to take my word for it. Anyone can pay for a signal call right here. One signature, four real on-chain settlements within seconds."
+
+**On-screen text:** `One click. One signature. Four on-chain payments. EIP-712 signed receipt.`
+
+---
+
+## Beat 5 — Onchain OS skill integration (1:40–1:55) · 15s
+
+**Visual:** Open a new tab → `https://wallet-risk.gudman.xyz` → show JSON `okxSkill: "Wallet (enabled)"`. Then `liquidity-depth.gudman.xyz` → `"DEX aggregator (enabled)"`. Then `yield-score.gudman.xyz` → `"Market Data (enabled)"`. Then `mcp.gudman.xyz/health` → `tools: 6, resources: 2`.
+
+**Voice:**
+> "Three Beacon signals integrate live OnchainOS skills — Wallet, DEX Aggregator, and Market Data. The MCP server exposes Atlas state and cascade receipts to any agent client — Claude Desktop, Cursor, Moltbook."
+
+---
+
+## Beat 6 — The thesis + close (1:55–2:00) · 5s
+
+**Visual:** Cut back to home page strategy leaderboard. Greed leads.
+
+**Voice:**
+> "Does paid intelligence beat free price action? Watch the leaderboard answer in public on X Layer."
+
+**On-screen end card:**
 ```
-
-**Voiceover (over the reveal)**:
-> "This is the receipt. EIP-712 signed by the composite's wallet. It lists
-> every upstream — wallet-risk, liquidity-depth, yield-score — with the amount
-> paid and the settlement tx hash. Any party — indexer, auditor, another agent —
-> verifies cryptographically. **The cascade graph is no longer a heuristic. It
-> is signed data.**"
-
-**Action**: Pause 3 full seconds on the decoded JSON showing `upstreams: [...]` with three entries.
-
-**Text overlay**: `1 signed receipt → 3 upstream authors → 4 on-chain settlements`
-
----
-
-## [2:30 – 2:50] **THE TRUST MOMENT — adversarial tests**
-
-**Screen**: Terminal.
-
-```bash
-cd contracts && npx hardhat test test/AtlasV2.test.ts
+beacon.gudman.xyz
+github.com/Ridwannurudeen/beacon
 ```
-
-**Voiceover**:
-> "Nine tests prove V2's trust claims: outsiders can't inflate NAV, they can't
-> move sub-wallet funds, they can't self-report fake profits, slashing
-> correctly punishes fraud. 42 tests total. All green."
-
-**Action**: Pause on the ✓ 9 passing line.
-
----
-
-## [2:50 – 3:00] Close
-
-**Screen**: GitHub.
-
-**Voiceover**:
-> "Open source. Production-tier rebuild. Live on X Layer. Atlas: custody,
-> cascade, competition — by protocol."
-
-**Final frame**: `beacon.gudman.xyz · github.com/Ridwannurudeen/beacon · #XLayerHackathon @XLayerOfficial`
 
 ---
 
 ## Recording checklist
 
-- [ ] V2 contracts deployed + strategies allocated (10K bUSD each)
-- [ ] atlas-agent-runner-v2 service active on VPS
-- [ ] ~20 tick cycles elapsed so sub-wallets hold mixed positions
-- [ ] CascadeLedger has at least one submitted receipt (optional but powerful)
-- [ ] OKLink open in tab for tx inspection
-- [ ] Chrome incognito, no extensions
-- [ ] OBS 1080p60
-- [ ] Voiceover recorded separately
-- [ ] Cascade receipt moment rehearsed 5+ times — the pause is the punchline
+- [ ] Hard-refresh both tabs (Ctrl+Shift+R) so latest UI shows
+- [ ] Wallet pre-funded with ≥0.1 bUSD + a little OKB for gas
+- [ ] Cursor/MetaMask notification popups disabled in OS settings
+- [ ] Browser zoom 100%, full-screen mode
+- [ ] Mic levels checked — no clipping
+- [ ] If voice-over is hard, switch to on-screen captions only (rules don't require voice)
+- [ ] After recording, trim to ≤2:00. Maximum acceptable per rules is 3:00 — keep buffer.
+- [ ] Export 1080p MP4 (H.264). Should be ≤200 MB.
+- [ ] Upload to YouTube as **unlisted**, or to Google Drive with link sharing on (anyone with link).
 
-## Upload
+## After upload
 
-- YouTube unlisted first → share with reviewer
-- Public at submission time
-- Description: `Atlas — on-chain AI strategy vault on X Layer. Production-tier V2 with signed CascadeReceipts. https://github.com/Ridwannurudeen/beacon @XLayerOfficial #XLayerHackathon #onchainos`
+Paste the URL back to me and I'll insert it into the submission form draft.

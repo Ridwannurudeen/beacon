@@ -1,85 +1,171 @@
-# OKX Build X Hackathon — Submission Drafts (V2)
+# OKX Build X Hackathon — Submission Drafts
 
 Two submissions, one codebase. **DO NOT SUBMIT WITHOUT EXPLICIT USER APPROVAL.**
 
----
-
-## X Layer Arena — "Atlas V2"
-
-**Project name**: Atlas — On-chain AI Strategy Vault on X Layer
-
-**One-liner**: An ERC-4626-shaped multi-strategy vault on X Layer where three AI agent strategies (Fear, Greed, Skeptic) compete for capital under real custody. Every signal the strategies consume arrives with a cryptographically signed CascadeReceipt — no heuristics, no self-reported P&L.
-
-**Track**: X Layer Arena
-
-**Deployment chain**: X Layer testnet (chainId 1952)
-
-### V2 Contract addresses
-
-- `AtlasVaultV2`: `0x2b77AAD51566aeD6ec6feba250450200997BbA22`
-- `TradingStrategy "Fear"`: `0x7EaAE912FAAEC57e983CE1Fe27aBF52cf2AcA19e`
-- `TradingStrategy "Greed"`: `0x49B6A043478F99F001a369cBe501273395897F8f`
-- `TradingStrategy "Skeptic"`: `0x75832CF881cf1854f153e24D751e4C3bBb535d7a`
-- `SlashingRegistry`: `0x39e371a7680e7754914384Dd778FF0Eb8d5B6053`
-- `CascadeLedger`: `0x5abb55245023E7886234102ff338bB70FacCF761`
-- `DemoAMM`: `0x54F90b6D39284806639Bf376C28FA07d3547Cd76`
-- Beacon `SignalRegistry`: `0x02D1f2324D9D7323CB27FC504b846e9CB2020433`
-- Beacon `PaymentSplitter`: `0xaD5FE8f63143Fae56D097685ECF99BEEc612169a`
-- `bUSD` (TestToken, EIP-3009): `0xe5A5A31145dc44EB3BD701897cd825b2443A6B76`
-- `MockX`: `0x320830a9094e955EdD366802127f4F056CF4B08B`
-
-### Agent executor EOAs (zero custody — trigger-only)
-
-- Fear: `0x4fc3a3848fFc74f1B608A3961D27F07e4216ae4F`
-- Greed: `0x411C0Ec26BE4628e79090f4e35f9D45079767785`
-- Skeptic: `0x94f94a111cBBd5e33ec440A199542955a307bB8e`
-
-### Summary (300 words)
-
-Atlas V2 is an ERC-4626-shaped on-chain AI strategy vault on X Layer testnet where three agent-operated strategies compete for capital allocation under real custody guarantees. Unlike demos where external wallets can inflate NAV, Atlas's `totalAssets()` counts only vault-idle plus the equity of vault-controlled sub-wallets owned by registered strategies. An attacker minting themselves bUSD cannot touch share price.
-
-Strategies operate under a two-tier trust model: each strategy contract owns a deterministically-deployed SubWallet invokable only by the strategy; the strategy itself is vault-gated for capital flows. Off-chain agent runners submit signed TradeIntents to `TradingStrategy.submitAction`, which validates and executes the swap on-chain. Executors have zero custody. P&L derives from on-chain balance snapshots inside `IStrategy.report()` — no agent-supplied PnL.
-
-The composite signal cascade is cryptographic. Every response ships with an EIP-712-signed `CascadeReceipt` listing every upstream author, amount, and settlement tx hash. The `CascadeLedger` contract accepts receipts, verifies signatures, emits deterministic `CascadeSettled` + `UpstreamPaid` events. Indexers build the payment graph from events — no heuristic block-window matching, no trust in the composite server.
-
-`SlashingRegistry` adds economic accountability: strategies post stake, fraud claims with bonds trigger challenge windows, unresolved claims slash stake to a treasury. Legitimate rebuttals burn the claimant's bond.
-
-42/42 contract tests pass, including an adversarial suite targeting every flaw that a public review flagged in the earlier V1: NAV inflation via open-mint tokens, sub-wallet custody breach, self-reported P&L manipulation, cascade forgery, withdraw-while-allocated safety.
-
-**Onchain OS / Uniswap skill usage**: Custom x402 server built on `@x402/evm` v2 primitives (Coinbase v1 SDK hardcodes a Zod network enum that excludes X Layer). Uniswap V2 math in DemoAMM; Uniswap V3 pool reader in the `liquidity-depth` signal. Every layer integrates X Layer natively.
-
-**GitHub**: https://github.com/Ridwannurudeen/beacon
-
-**Live URL**: https://beacon.gudman.xyz
-
-**Demo video**: [TBD — record per `docs/DEMO_SCRIPT.md`]
-
-**Team**: Ridwan Nurudeen / @ggudman
-
-**Special prizes claimed**: Best x402 application (signed cascade receipts), Best economy loop (vault → allocation → strategy → harvest → reallocation), Best MCP integration (@beacon/mcp exposes signals to any Claude/Cursor agent), Most active agent (3 executors continuously submitting intents).
+Deadline: **23:59 UTC · April 15, 2026** (Google Form per official rules).
 
 ---
 
-## Skills Arena — "@beacon/sdk v1.0"
+## Submission #1 — X Layer Arena → Atlas V2
 
-**Project name**: @beacon/sdk — composable x402 signal primitives with cryptographic cascade receipts
+### Form fields
 
-**One-liner**: The first TypeScript SDK for X Layer that turns any HTTP endpoint into a per-call-priced agentic signal. Composites cascade payments to upstream authors by protocol. Every response is a cryptographically signed CascadeReceipt — not heuristic matching.
+| Field | Value |
+|---|---|
+| **Project name** | Atlas V2 — Multi-strategy Vault with Signed Cascade Receipts |
+| **One-liner** | An ERC-4626 vault on X Layer where 3 AI strategies compete for capital. One pays for x402 signals before every trade. Every payment produces an EIP-712 signed cascade receipt anchored on-chain via `CascadeLedger`. |
+| **Track** | X Layer Arena |
+| **Special prizes claimed** | Best x402 application · Best economy loop · Best MCP integration · Most active agent |
+| **GitHub** | https://github.com/Ridwannurudeen/beacon |
+| **Live URL** | https://beacon.gudman.xyz |
+| **Docs URL** | https://beacon.gudman.xyz/docs.html |
+| **Demo video** | _[fill in YouTube / Drive link after recording per `docs/DEMO_SCRIPT.md`]_ |
+| **X post** | _[fill in tweet URL with #XLayerHackathon @XLayerOfficial after posting]_ |
+| **Team** | Ridwan Nurudeen — solo builder. X: @ridnurudeen |
+| **Deployment chain** | X Layer mainnet (chainId 196) + testnet (1952) sandbox |
 
-**Track**: Skills Arena
+### Project description (long-form, ~400 words)
 
-**Skill module**: `defineSignal` + `defineComposite` + `fetchWithPayment` + `signCascadeReceipt` + `verifyCascadeReceipt`
+Atlas V2 is a working answer to a question worth millions: **does paid AI intelligence outperform free price action in live trading?**
 
-**GitHub** (`packages/sdk/`): https://github.com/Ridwannurudeen/beacon/tree/main/packages/sdk
+The product is a **vault-custody multi-strategy arena** on X Layer. Users deposit USDT into an ERC-4626-shaped contract (`AtlasVaultV2`). The vault allocates capital to three on-chain strategies:
 
-**npm**: `@beacon/sdk@1.0.0` (ready to publish — `npm publish --access public` in `packages/sdk`)
+- **Fear** — momentum trader, rides 30-bps moves
+- **Greed** — mean-reverter, fades 50-bps deviations
+- **Skeptic** — intelligence-driven, queries the `safe-yield` composite signal via x402 before every trade
 
-### On-chain substrate
+Skeptic's edge depends entirely on whether paid intelligence is worth more than its cost. That cost is real on-chain settlement — every signal call settles 4 transactions: 1 buyer payment (Skeptic → composite) + 3 upstream royalty payments (composite → wallet-risk / liquidity-depth / yield-score authors). The composite signs an **EIP-712 CascadeReceipt** of the full payment graph and returns it in `X-Cascade-Receipt`. Skeptic verifies the signature, anchors the receipt to `CascadeLedger.anchorReceipt()`, then trades using the signal. Five real X Layer transactions per Skeptic tick — verifiable on OKLink.
 
-- `SignalRegistry`: `0x02D1f2324D9D7323CB27FC504b846e9CB2020433`
-- `PaymentSplitter`: `0xaD5FE8f63143Fae56D097685ECF99BEEc612169a`
-- `CascadeLedger`: `0x5abb55245023E7886234102ff338bB70FacCF761`
-- `bUSD` (EIP-3009 settlement): `0xe5A5A31145dc44EB3BD701897cd825b2443A6B76`
+**Onchain OS skills integrated** (real V6 API calls, mainnet only — verified live):
+
+| Signal | Onchain OS skill | Endpoint |
+|---|---|---|
+| `wallet-risk` | **Wallet** — portfolio scan | `/api/v5/wallet/asset/all-token-balances-by-address` |
+| `liquidity-depth` | **DEX Aggregator** — cross-DEX quote | `/api/v6/dex/aggregator/quote` |
+| `yield-score` | **Market Data** — price + candles | `/api/v6/dex/market/price-info` + `/api/v6/dex/market/candles` |
+| (registry) | **Supported chains** | `/api/v6/dex/aggregator/supported/chain` |
+| (registry) | **All tokens** | `/api/v6/dex/aggregator/all-tokens` |
+
+The agent runner uses OKX DEX Aggregator quotes to route trades through the best X Layer liquidity (verified: `CurveNG + Uniswap V3 Fork` returned by live probe).
+
+**MCP server** (`@beacon/mcp`) at `mcp.gudman.xyz/sse` — exposes 6 tools (list_signals, signal_meta, call_signal, atlas_state, list_cascade_receipts, get_cascade_receipt) and 2 resources (`beacon://registry`, `beacon://atlas`) to any MCP-capable agent client.
+
+**Security posture**: 42/42 contract tests pass including 10 adversarial cases (NAV inflation, custody breach, fraud claims). Slither clean of high/medium findings. Foundry invariants in CI. TWAP-priced NAV closes flash-loan manipulation. Pausable guardian role. Slashing-backed strategy stake.
+
+### How it integrates X Layer
+
+1. **All contracts deployed on X Layer** (mainnet + testnet). Real settlement currency.
+2. **Real on-chain economic activity** — every Skeptic tick produces 5 X Layer txs (buyer + 3 upstream + anchor). 30+ cascade receipts already on testnet, will replicate on mainnet.
+3. **Trades route through X Layer DEX liquidity** via OKX Aggregator (covers Uniswap V3 forks + CurveNG on X Layer).
+4. **MCP integration** lets agent clients (Claude, Cursor, Moltbook) call signals + read vault state directly from X Layer.
+
+### Working mechanics (one-paragraph)
+
+Skeptic's agent-runner ticks every ~22 seconds. On each tick: (1) calls `safe-yield.gudman.xyz/signal` → receives 402 → signs EIP-3009 transferWithAuthorization → retries with `X-Payment` → server settles the transfer on-chain → composite forwards x402 calls to 3 upstream signals → each upstream settles separately on-chain → composite signs EIP-712 receipt of the payment graph → returned in `X-Cascade-Receipt`. (2) Skeptic verifies the signature, calls `CascadeLedger.anchorReceipt()` → emits `CascadeSettled` + `UpstreamPaid` events. (3) Skeptic decides whether to BUY/SELL based on the signal score, calls `submitAction(callData)` on its strategy contract → strategy executes the swap via OKX aggregator router from its sub-wallet → equity changes flow through `vault.harvest()` into `cumulativeProfit/Loss`.
+
+### Project onchain identity (as required by the rules)
+
+| Role | Address | Purpose |
+|---|---|---|
+| Atlas deployer | `0x90329b94b178b45B4a9f25cfCF3979a2aea41542` | Deploys, seeds vault, harvests, emergency-pauses |
+| Fear executor | `0x4fc3a3848fFc74f1B608A3961D27F07e4216ae4F` | Submits momentum-strategy intents |
+| Greed executor | `0x411C0Ec26BE4628e79090f4e35f9D45079767785` | Submits mean-revert intents |
+| Skeptic executor | `0x94f94a111cBBd5e33ec440A199542955a307bB8e` | Pays for signals, anchors receipts, trades |
+| wallet-risk author | `0x1e9921B1c6ca20511d9Fc1ADb344882c59002bD6` | Signal payee |
+| liquidity-depth author | `0x75D51494005Aa71e0170DCE8086d7CaEC07B7906` | Signal payee |
+| yield-score author | `0x20C7Ad3561993FA5777bFF6cd532697d1ca994b0` | Signal payee |
+| safe-yield composite | `0x7535ab44553FE7D0B11aa6ac8CBc432c81Cb998D` | Composite signer + cascade payee |
+
+### Mainnet contract addresses (X Layer chainId 196)
+
+_To fill in after `npx hardhat run scripts/deployAtlasV2Mainnet.ts --network xlayer` completes. See `contracts/deployments/xlayer.atlasV2.json`._
+
+| Contract | Address |
+|---|---|
+| AtlasVaultV2 | `[fill in]` |
+| AggregatorStrategy (Fear) | `[fill in]` |
+| AggregatorStrategy (Greed) | `[fill in]` |
+| AggregatorStrategy (Skeptic) | `[fill in]` |
+| CascadeLedger | `[fill in]` |
+| SlashingRegistry | `[fill in]` |
+| WithdrawQueue | `[fill in]` |
+| TwapOracle | `[fill in]` |
+
+### Testnet contract addresses (X Layer chainId 1952) — sandbox
+
+| Contract | Address |
+|---|---|
+| AtlasVaultV2 | `0xC968616eB00B80a8A72E9335b739223E212cb4F5` |
+| TwapOracle | `0x641eeA815E8d8Ffbf21A190B0Ae67fC577cD607C` |
+| CascadeLedger | `0x270Bb62a10b4eEbF5e851ef826ff38b6a2A8ee8A` |
+| SlashingRegistry | `0x2726f7Ea4277C33028904B8eD0f6eDD09DAFA9bD` |
+| Fear / Greed / Skeptic | `0x90cC...83F1` / `0xba9f...e244` / `0x5c09...8C71` |
+| WithdrawQueue | `0x86393DC9E4FD41f689847e1CC119197C248741D9` |
+| bUSD (testnet token) | `0xe5A5A31145dc44EB3BD701897cd825b2443A6B76` |
+
+---
+
+## Submission #2 — Skills Arena → @beacon/sdk
+
+### Form fields
+
+| Field | Value |
+|---|---|
+| **Project name** | @beacon/sdk — Composable x402 signals + cryptographic cascade receipts |
+| **One-liner** | The first TypeScript SDK for X Layer that turns any HTTP endpoint into a per-call-priced agentic signal. Composites cascade payments to upstream authors. Every response is an EIP-712 signed CascadeReceipt — not heuristic matching. |
+| **Track** | Skills Arena |
+| **Special prizes claimed** | Best Uniswap integration · Best data analyst · Most innovative |
+| **GitHub** | https://github.com/Ridwannurudeen/beacon (`packages/sdk/`) |
+| **npm** | `@beacon/sdk@1.0.0` (ready to `npm publish --access public`) |
+| **Demo video** | Same video as submission #1 (cover both products) |
+| **X post** | _[separate tweet for #onchainos hashtag]_ |
+| **Team** | Ridwan Nurudeen |
+
+### Skill module surface
+
+Three exports:
+
+```ts
+import { defineSignal, defineComposite, fetchWithPayment } from "@beacon/sdk";
+
+// Publish a paid signal in 15 lines
+const signal = defineSignal({
+  slug: "my-signal",
+  price: 1500n,                  // 0.0015 USDT per call
+  payTo: account.address,
+  token: usdtDescriptor,
+  chainId: 196,                  // X Layer mainnet
+  settlementWallet,
+  handler: async (ctx) => ({ score: 88 }),
+});
+
+// Cascade payments to upstream signal authors
+const composite = defineComposite({
+  slug: "safe-yield",
+  upstream: [
+    { slug: "wallet-risk", url: "...", shareBps: 3300 },
+    { slug: "liquidity-depth", url: "...", shareBps: 3300 },
+    { slug: "yield-score", url: "...", shareBps: 3400 },
+  ],
+  handler: async (ctx, upstream) => composite(upstream),
+});
+// Composite returns the signed CascadeReceipt automatically.
+
+// Client-side
+const res = await fetchWithPayment(url, walletClient);
+// Decodes both X-Payment-Response (settlement tx) AND X-Cascade-Receipt.
+```
+
+### Skill modules used
+
+| Onchain OS / Uniswap module | Where |
+|---|---|
+| **DEX Aggregator quote** (Onchain OS V6) | `liquidity-depth` signal — pipes a real OKX aggregator quote alongside Uniswap v3 pool reads |
+| **Market Data** (Onchain OS V6) | `yield-score` signal — `getPriceInfo` + `getCandles` for market regime context |
+| **Wallet** (Onchain OS V5 by-address) | `wallet-risk` signal — portfolio risk factor when value > $100K |
+| **Uniswap v3 pool math** | `liquidity-depth` reads `slot0`, `liquidity`, `token0/1` direct via viem |
+
+All Onchain OS calls are HMAC-SHA256 signed (`OK-ACCESS-KEY/SIGN/TIMESTAMP/PASSPHRASE`). See `packages/okx-client/src/index.ts`.
 
 ### Live signal endpoints
 
@@ -88,37 +174,40 @@ The composite signal cascade is cryptographic. Every response ships with an EIP-
 - https://yield-score.gudman.xyz/signal
 - https://safe-yield.gudman.xyz/signal (composite — signs CascadeReceipts)
 
-### Summary (300 words)
+### MCP server
 
-`@beacon/sdk` is the TypeScript SDK behind Atlas. Three exports cover the developer surface:
+- `mcp.gudman.xyz/sse` — `@beacon/mcp` exposes Beacon signals + Atlas state to any MCP client.
+- 6 tools: `list_signals`, `signal_meta`, `call_signal`, `atlas_state`, `list_cascade_receipts`, `get_cascade_receipt`
+- 2 resources: `beacon://registry`, `beacon://atlas`
 
-**`defineSignal({ slug, price, handler })`** — mounts a Hono sub-app that serves `402 Payment Required` with EIP-3009 `transferWithAuthorization` requirements, verifies the buyer's typed-data signature against the settlement token's domain, settles on-chain, runs the handler, returns the settlement tx hash in `X-Payment-Response`.
+### Project description (long-form, ~300 words)
 
-**`defineComposite({ upstream, shareBps })`** — the cascade primitive. Wraps `defineSignal` with automatic fan-out: before running the composite's handler, issues `fetchWithPayment` calls to each declared upstream from the composite's own wallet. After serving, signs an EIP-712 `CascadeReceipt` carrying the full upstream payment graph and ships it in `X-Cascade-Receipt`. Any consumer verifies cryptographically — no trust in the composite server, no heuristic block-window matching.
+`@beacon/sdk` solves a problem that block agent-marketplace projects have hand-waved through: how do you prove what an agent paid for, when the payment chain spans multiple servers?
 
-**`fetchWithPayment(url, walletClient)`** — the client. Auto-negotiates 402 → signs EIP-3009 → retries with `X-Payment` → returns the final response plus cascade receipt.
+The answer is the **CascadeReceipt** — an EIP-712 typed struct listing every upstream payment the composite made for one buyer call (slug, author address, amount, on-chain settlement tx hash). The composite signs it with its wallet. The buyer verifies cryptographically. Optional on-chain anchoring via `CascadeLedger` makes the entire payment graph queryable as events.
 
-The reference application is Atlas: three AI agent strategies on an on-chain vault, Skeptic's pre-trade signal queries prove whether the cascade generates alpha (or doesn't — the market decides).
+The SDK ships three primitives:
+- **`defineSignal`** — turns any handler into a paid HTTP endpoint (HTTP 402 → EIP-3009 → on-chain settlement → `X-Payment-Response`).
+- **`defineComposite`** — wraps `defineSignal` with automatic upstream fan-out + receipt signing.
+- **`fetchWithPayment`** — client side: probes 402, signs, retries, returns response + decoded cascade receipt.
 
-Coinbase's v1 x402 SDK hardcodes a Zod network enum that excludes X Layer. `@beacon/sdk` targets the v2 `${string}:${string}` contract via `@x402/evm` and works natively on X Layer mainnet (chainId 196) and testnet (chainId 1952).
+The reference application is **Atlas V2** — three AI strategies on a multi-strategy vault, where one (Skeptic) buys signals through the cascade. It's not a toy: 30+ cascade receipts already anchored on testnet, every Skeptic tick produces real on-chain activity, the agent-runner has been shipping since 2026-04-12.
 
-Optional on-chain `CascadeLedger` contract accepts signed receipts, emits deterministic events, gives indexers a first-class cascade-graph data source.
-
-**Special prizes claimed**: Best data analyst (`liquidity-depth` reads Uniswap v3 pool math on X Layer), Best Uniswap integration, Most innovative (signed CascadeReceipt is a novel primitive).
+The SDK works on **X Layer mainnet (196)** and testnet (1952). Coinbase's v1 x402 SDK hardcodes a Zod network enum that excludes X Layer; we built on `@x402/evm` v2 primitives instead.
 
 ---
 
-## Honest framing notes
+## Honest framing notes (for self-review before submitting)
 
-- V1 Atlas (earlier addresses, still running on the VPS) had review-flagged flaws: NAV manipulation via external EOAs, self-reported P&L, heuristic cascade matching, fake deposit flow.
-- V2 rebuilds the trust spine: real custody via vault-controlled sub-wallets, balance-snapshot P&L, signed CascadeReceipts, slashing-backed stake.
-- 42/42 tests pass across both codebases, including adversarial tests against every flaw the review identified.
-- If judges ask about V1 vs V2: V1 was a proof-of-motion; V2 is the production-tier rebuild. Both are public on the repo; we don't hide the progression.
+- **Mainnet deploy** completed before submission — addresses filled in above.
+- **NAV anomaly**: Greed shows +534% on testnet because of thin-AMM TWAP drift. We harvested to realize P&L on-chain (visible as `cumulativeProfit`). On mainnet (Uniswap v3 with real liquidity) this disappears.
+- **AggregatorStrategy** is the new strategy contract for mainnet — uses OKX aggregator router instead of DemoAMM. Existing TradingStrategy stays for testnet compatibility.
+- **PreflightX** is a separate Skills Arena entry (already submitted on its own form). Atlas + @beacon/sdk are the entries we're submitting today.
 
 ## Post-submission flight plan
 
 1. `cd packages/sdk && npm publish --access public` → `@beacon/sdk@1.0.0` live on npm
 2. Publish `@beacon/mcp` to npm
-3. Tweet thread with demo video + cascade receipt screenshot, tag `@XLayerOfficial #XLayerHackathon #onchainos`
+3. Tweet thread with demo video link, tag `@XLayerOfficial #XLayerHackathon` (and `#onchainos` for the Skills entry)
 4. Recruit 1-2 third-party signal authors per `docs/THIRD_PARTY_AUTHOR_OUTREACH.md`
-5. Submit Onchain OS Plugin Store listing if Skills Arena placement requires it
+5. Apply for Onchain OS Plugin Store featured spot (Skills Arena top-3 prize)
