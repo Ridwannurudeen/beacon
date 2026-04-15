@@ -1,0 +1,24 @@
+{
+  "network": "xlayer",
+  "chainId": 196,
+  "deployer": "0x90329b94b178b45B4a9f25cfCF3979a2aea41542",
+  "contracts": {
+    "USDT0": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "VolatileToken": "0xe538905cf8410324e03a5a23c1c177a474d59b2b",
+    "OkxRouter": "0x8b773D83bc66Be128c60e07E17C8901f7a64F000",
+    "FixedPriceSource": "0x02D1f2324D9D7323CB27FC504b846e9CB2020433",
+    "TwapOracle": "0xaD5FE8f63143Fae56D097685ECF99BEEc612169a",
+    "AtlasVaultV2": "0xe5A5A31145dc44EB3BD701897cd825b2443A6B76",
+    "Fear": "0xa551c999d72724eA7d94abc5D803ED030A836273",
+    "FearSubWallet": "0xB8dBfef1c06c1000Bc0ed3e69d02B72aEc4492a1",
+    "Greed": "0x67B211A37422A245c04688A7aa17Db9a2836CfE2",
+    "GreedSubWallet": "0x5726A27ce99E59aA72b79ddcBb2F0F654E73B2f5",
+    "Skeptic": "0x80ff5aCFb497FdD1EB0944847f2F0f3914683C38",
+    "SkepticSubWallet": "0xEFBd690b0b6B313815fdF8A301C3ab597255BE14",
+    "SlashingRegistry": "0xBa6b5d940BAd7581463f4b2607131d0C8DcE22f1",
+    "CascadeLedger": "0x10942C0EAD5346031ED0d8736f6Ab4a73d8c43f1",
+    "WithdrawQueue": "0x5d1885aF211Bde60f2ca0833921B51E572193016"
+  },
+  "deployedAt": "2026-04-15T10:40:30.842Z",
+  "notes": "Mainnet deploy via AggregatorStrategy + OKX DEX router. FixedPriceSource feeds TwapOracle for NAV; agent-runner can update price via setPrice()."
+}

@@ -67,29 +67,31 @@ async function main() {
   //    (the agent-runner recomputes TWAP off-chain via OKX market skill; on-chain
   //    valuation is only used for NAV snapshots, not trade sizing).
   let oracleAddr: string;
+  let priceSourceAddr: string;
   if (ORACLE_OVERRIDE) {
     oracleAddr = ORACLE_OVERRIDE;
+    priceSourceAddr = "(reused)";
     console.log(`TwapOracle:      ${oracleAddr}  (reused)`);
   } else {
-    // For mainnet, we deploy TwapOracle pointing at the USDT0/OTHER pool if one
-    // exists on DemoAMM-shape — but mainnet doesn't have DemoAMM. Instead, use
-    // a minimal stub that always returns 1e18. The agent-runner & dashboard
-    // compute the real TWAP by reading the Uniswap v3 pool directly via viem +
-    // OKX market skill.
-    const Twap = await ethers.getContractFactory("TwapOracle");
-    // TwapOracle ctor takes an IDemoAMM; we point it at the zero addr and rely
-    // on the agent-runner's off-chain oracle. If this reverts on init, wrap
-    // with a custom impl.
-    try {
-      const oracle = await Twap.deploy(ethers.ZeroAddress, { nonce: await freshNonce() });
-      await oracle.waitForDeployment();
-      oracleAddr = await oracle.getAddress();
-    } catch {
-      console.warn("  TwapOracle won't accept zero — pass TWAP_ORACLE_ADDRESS instead");
-      throw new Error("set TWAP_ORACLE_ADDRESS");
-    }
+    // 1a) FixedPriceSource — bootstrapped with current OKX-quoted USDT/WOKB
+    //     ratio (~85 USDT per WOKB at OKB price ~$85). Owner can updatePrice()
+    //     anytime; downstream TwapOracle smooths over 30 minutes.
+    //     Price scaled to 1e18: 85e18 means "1 WOKB = 85 USDT".
+    const initialPrice = process.env.INITIAL_PRICE ?? (85n * 10n ** 18n).toString();
+    const FPS = await ethers.getContractFactory("FixedPriceSource");
+    const fps = await FPS.deploy(initialPrice, { nonce: await freshNonce() });
+    await fps.waitForDeployment();
     await sleep(3000);
-    console.log(`TwapOracle:      ${oracleAddr}  (stub)`);
+    priceSourceAddr = await fps.getAddress();
+    console.log(`FixedPriceSource: ${priceSourceAddr}  (price ${Number(initialPrice) / 1e18} USDT/WOKB)`);
+
+    // 1b) TwapOracle wrapping the FixedPriceSource
+    const Twap = await ethers.getContractFactory("TwapOracle");
+    const oracle = await Twap.deploy(priceSourceAddr, { nonce: await freshNonce() });
+    await oracle.waitForDeployment();
+    await sleep(3000);
+    oracleAddr = await oracle.getAddress();
+    console.log(`TwapOracle:      ${oracleAddr}`);
   }
 
   // 2) AtlasVaultV2
@@ -160,6 +162,7 @@ async function main() {
       USDT0,
       VolatileToken: OTHER,
       OkxRouter: ROUTER,
+      FixedPriceSource: priceSourceAddr,
       TwapOracle: oracleAddr,
       AtlasVaultV2: vaultAddr,
       Fear: await fear.getAddress(),

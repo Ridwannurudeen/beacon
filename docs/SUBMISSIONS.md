@@ -76,20 +76,24 @@ Skeptic's agent-runner ticks every ~22 seconds. On each tick: (1) calls `safe-yi
 | yield-score author | `0x20C7Ad3561993FA5777bFF6cd532697d1ca994b0` | Signal payee |
 | safe-yield composite | `0x7535ab44553FE7D0B11aa6ac8CBc432c81Cb998D` | Composite signer + cascade payee |
 
-### Mainnet contract addresses (X Layer chainId 196)
+### Mainnet contract addresses (X Layer chainId 196) — **LIVE**
 
-_To fill in after `npx hardhat run scripts/deployAtlasV2Mainnet.ts --network xlayer` completes. See `contracts/deployments/xlayer.atlasV2.json`._
+Deployed 2026-04-15 from `0x90329b94b178b45B4a9f25cfCF3979a2aea41542` (~$0.01 total gas).
 
 | Contract | Address |
 |---|---|
-| AtlasVaultV2 | `[fill in]` |
-| AggregatorStrategy (Fear) | `[fill in]` |
-| AggregatorStrategy (Greed) | `[fill in]` |
-| AggregatorStrategy (Skeptic) | `[fill in]` |
-| CascadeLedger | `[fill in]` |
-| SlashingRegistry | `[fill in]` |
-| WithdrawQueue | `[fill in]` |
-| TwapOracle | `[fill in]` |
+| AtlasVaultV2 | [`0xe5A5A31145dc44EB3BD701897cd825b2443A6B76`](https://www.oklink.com/xlayer/address/0xe5A5A31145dc44EB3BD701897cd825b2443A6B76) |
+| AggregatorStrategy (Fear) | [`0xa551c999d72724eA7d94abc5D803ED030A836273`](https://www.oklink.com/xlayer/address/0xa551c999d72724eA7d94abc5D803ED030A836273) |
+| AggregatorStrategy (Greed) | [`0x67B211A37422A245c04688A7aa17Db9a2836CfE2`](https://www.oklink.com/xlayer/address/0x67B211A37422A245c04688A7aa17Db9a2836CfE2) |
+| AggregatorStrategy (Skeptic) | [`0x80ff5aCFb497FdD1EB0944847f2F0f3914683C38`](https://www.oklink.com/xlayer/address/0x80ff5aCFb497FdD1EB0944847f2F0f3914683C38) |
+| CascadeLedger | [`0x10942C0EAD5346031ED0d8736f6Ab4a73d8c43f1`](https://www.oklink.com/xlayer/address/0x10942C0EAD5346031ED0d8736f6Ab4a73d8c43f1) |
+| SlashingRegistry | [`0xBa6b5d940BAd7581463f4b2607131d0C8DcE22f1`](https://www.oklink.com/xlayer/address/0xBa6b5d940BAd7581463f4b2607131d0C8DcE22f1) |
+| WithdrawQueue | [`0x5d1885aF211Bde60f2ca0833921B51E572193016`](https://www.oklink.com/xlayer/address/0x5d1885aF211Bde60f2ca0833921B51E572193016) |
+| TwapOracle | [`0xaD5FE8f63143Fae56D097685ECF99BEEc612169a`](https://www.oklink.com/xlayer/address/0xaD5FE8f63143Fae56D097685ECF99BEEc612169a) |
+| FixedPriceSource | [`0x02D1f2324D9D7323CB27FC504b846e9CB2020433`](https://www.oklink.com/xlayer/address/0x02D1f2324D9D7323CB27FC504b846e9CB2020433) |
+| **USDT (settlement)** | [`0x779ded0c9e1022225f8e0630b35a9b54be713736`](https://www.oklink.com/xlayer/address/0x779ded0c9e1022225f8e0630b35a9b54be713736) |
+| **WOKB (volatile)** | [`0xe538905cf8410324e03a5a23c1c177a474d59b2b`](https://www.oklink.com/xlayer/address/0xe538905cf8410324e03a5a23c1c177a474d59b2b) |
+| **OKX DEX Router** | [`0x8b773D83bc66Be128c60e07E17C8901f7a64F000`](https://www.oklink.com/xlayer/address/0x8b773D83bc66Be128c60e07E17C8901f7a64F000) |
 
 ### Testnet contract addresses (X Layer chainId 1952) — sandbox
 

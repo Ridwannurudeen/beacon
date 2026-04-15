@@ -127,7 +127,21 @@ Verified via OKX V6 DEX API probe (`scripts/probeXLayerAddresses.ts` on 2026-04-
 | **WOKB** (volatile) | `0xe538905cf8410324e03a5a23c1c177a474d59b2b` | 18 decimals — Fear/Greed/Skeptic trade USDT↔WOKB |
 | **OKX DEX Router** | `0x8b773D83bc66Be128c60e07E17C8901f7a64F000` | `dexTokenApproveAddress` from OKX V6 `supported/chain` |
 
-Atlas V2 contract addresses write to `contracts/deployments/xlayer.atlasV2.json` once the deploy script completes.
+**Atlas V2 contracts on X Layer mainnet (deployed 2026-04-15):**
+
+| Contract | Address |
+|---|---|
+| `AtlasVaultV2` | [`0xe5A5A31145dc44EB3BD701897cd825b2443A6B76`](https://www.oklink.com/xlayer/address/0xe5A5A31145dc44EB3BD701897cd825b2443A6B76) |
+| `AggregatorStrategy (Fear)` | [`0xa551c999d72724eA7d94abc5D803ED030A836273`](https://www.oklink.com/xlayer/address/0xa551c999d72724eA7d94abc5D803ED030A836273) |
+| `AggregatorStrategy (Greed)` | [`0x67B211A37422A245c04688A7aa17Db9a2836CfE2`](https://www.oklink.com/xlayer/address/0x67B211A37422A245c04688A7aa17Db9a2836CfE2) |
+| `AggregatorStrategy (Skeptic)` | [`0x80ff5aCFb497FdD1EB0944847f2F0f3914683C38`](https://www.oklink.com/xlayer/address/0x80ff5aCFb497FdD1EB0944847f2F0f3914683C38) |
+| `CascadeLedger` | [`0x10942C0EAD5346031ED0d8736f6Ab4a73d8c43f1`](https://www.oklink.com/xlayer/address/0x10942C0EAD5346031ED0d8736f6Ab4a73d8c43f1) |
+| `SlashingRegistry` | [`0xBa6b5d940BAd7581463f4b2607131d0C8DcE22f1`](https://www.oklink.com/xlayer/address/0xBa6b5d940BAd7581463f4b2607131d0C8DcE22f1) |
+| `WithdrawQueue` | [`0x5d1885aF211Bde60f2ca0833921B51E572193016`](https://www.oklink.com/xlayer/address/0x5d1885aF211Bde60f2ca0833921B51E572193016) |
+| `TwapOracle` | [`0xaD5FE8f63143Fae56D097685ECF99BEEc612169a`](https://www.oklink.com/xlayer/address/0xaD5FE8f63143Fae56D097685ECF99BEEc612169a) |
+| `FixedPriceSource` | [`0x02D1f2324D9D7323CB27FC504b846e9CB2020433`](https://www.oklink.com/xlayer/address/0x02D1f2324D9D7323CB27FC504b846e9CB2020433) |
+
+Total deploy cost: **0.0002 OKB (~$0.01)**.
 
 Shared Onchain OS skill credentials → see env setup below.
 
