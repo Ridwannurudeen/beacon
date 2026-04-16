@@ -83,6 +83,9 @@ jobs:
       - name: sdk first
         working-directory: packages/sdk
         run: npx tsc -p tsconfig.json
+      - name: okx-client
+        working-directory: packages/okx-client
+        run: npx tsc -p tsconfig.json
       - name: wallet-risk
         working-directory: signals/wallet-risk
         run: npx tsc -p tsconfig.json
